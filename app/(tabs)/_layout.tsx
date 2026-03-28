@@ -62,6 +62,14 @@ export default function TabLayout() {
           tabBarIcon: ({ color }) => <CagedIcon color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="progressions"
+        options={{
+          title: 'Chords',
+          tabBarIcon: ({ color }) => <ProgressionsIcon color={color} />,
+          tabBarLabel: 'Progressions',
+        }}
+      />
     </Tabs>
   );
 }
@@ -101,6 +109,16 @@ function CagedIcon({ color }: { color: string }) {
     <View style={{ flexDirection: 'row', gap: 2, alignItems: 'center' }}>
       {['C','A','G'].map((l, i) => (
         <View key={i} style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: color, opacity: 0.7 + i * 0.15 }} />
+      ))}
+    </View>
+  );
+}
+
+function ProgressionsIcon({ color }: { color: string }) {
+  return (
+    <View style={{ flexDirection: 'row', gap: 3, alignItems: 'flex-end' }}>
+      {[8, 12, 10, 14].map((h, i) => (
+        <View key={i} style={{ width: 4, height: h * 0.9, backgroundColor: color, borderRadius: 2 }} />
       ))}
     </View>
   );
