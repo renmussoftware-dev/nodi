@@ -8,6 +8,8 @@ import ChordBox from '../../src/components/ChordBox';
 import { COLORS, SPACE, RADIUS } from '../../src/constants/theme';
 import { NOTES, NOTE_DISPLAY, CHORDS } from '../../src/constants/music';
 import { useStore } from '../../src/store/useStore';
+import { useAudioEngine } from '../../src/hooks/useAudioEngine';
+import { getChordVoicings } from '../../src/utils/theory';
 
 const CATEGORIES = ['All', 'Triads', 'Seventh', 'Extended', 'Sus'];
 const CAT_MAP: Record<string, string> = {
@@ -17,6 +19,7 @@ const DRAWER_W = 200;
 
 export default function ChordsScreen() {
   const { root, setRoot } = useStore();
+  const { playChord } = useAudioEngine();
   const [category, setCategory] = useState('All');
   const [selectedChord, setSelectedChord] = useState('Major');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -54,6 +57,9 @@ export default function ChordsScreen() {
   function selectChord(key: string) {
     setSelectedChord(key);
     closeDrawer();
+    // Play the first voicing of the selected chord
+    const voicings = getChordVoicings(root, key);
+    if (voicings.length > 0) playChord(voicings[0].frets);
   }
 
   const filteredChords = Object.entries(CHORDS).filter(([, ch]) =>

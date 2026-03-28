@@ -10,6 +10,8 @@ import { NOTES, NOTE_DISPLAY, CHORDS, OPEN_STRINGS } from '../../src/constants/m
 import { PROGRESSIONS, GENRES, type Progression } from '../../src/constants/progressions';
 import ChordBox from '../../src/components/ChordBox';
 import { useStore } from '../../src/store/useStore';
+import { useAudioEngine } from '../../src/hooks/useAudioEngine';
+import { getChordVoicings } from '../../src/utils/theory';
 
 type SubMode = 'common' | 'diatonic' | 'custom';
 
@@ -126,6 +128,7 @@ export default function ProgressionsScreen() {
   const scrimAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const { playChord, playProgression, stopProgression } = useAudioEngine();
 
   const activeProg: Progression = subMode === 'custom'
     ? {
@@ -143,20 +146,36 @@ export default function ProgressionsScreen() {
   const currentType = activeProg.chordTypes[activeIdx] ?? 'Major';
   const currentNumeral = activeProg.numerals[activeIdx] ?? '';
 
+  // Build fret arrays for the current progression's chords
+  function getProgressionFrets(): (number | null)[][] {
+    return activeProg.degrees.map((deg, i) => {
+      const chordRoot = (root + deg) % 12;
+      const chordType = activeProg.chordTypes[i] ?? 'Major';
+      const voicings = getChordVoicings(chordRoot, chordType);
+      return voicings.length > 0 ? voicings[0].frets : [];
+    });
+  }
+
   useEffect(() => {
     if (intervalRef.current) clearInterval(intervalRef.current);
-    if (playing && count > 0) {
-      const ms = Math.round((60 / bpm) * 1000);
-      intervalRef.current = setInterval(() => {
-        setActiveIdx(i => (i + 1) % count);
+    if (!playing) { stopProgression(); return; }
+    if (count === 0) return;
+
+    const fretsList = getProgressionFrets();
+    playProgression(
+      fretsList,
+      bpm,
+      (idx) => {
+        setActiveIdx(idx);
         Animated.sequence([
           Animated.timing(fadeAnim, { toValue: 0.3, duration: 70, useNativeDriver: true }),
           Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
         ]).start();
-      }, ms);
-    }
-    return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
-  }, [playing, count, bpm]);
+      },
+      () => setPlaying(false),
+    );
+    return () => { stopProgression(); };
+  }, [playing, count, bpm, root, activeProg]);
 
   const DRAWER_W = 200;
 
@@ -182,6 +201,11 @@ export default function ProgressionsScreen() {
       Animated.timing(fadeAnim, { toValue: 0.3, duration: 60, useNativeDriver: true }),
       Animated.timing(fadeAnim, { toValue: 1, duration: 160, useNativeDriver: true }),
     ]).start();
+    // Play the chord audio on manual step
+    const chordRoot = (root + (activeProg.degrees[i] ?? 0)) % 12;
+    const chordType = activeProg.chordTypes[i] ?? 'Major';
+    const voicings = getChordVoicings(chordRoot, chordType);
+    if (voicings.length > 0) playChord(voicings[0].frets);
   }
 
   function pickProg(p: Progression) {
