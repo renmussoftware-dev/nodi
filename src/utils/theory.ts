@@ -173,27 +173,29 @@ export function getChordVoicings(root: number, chordKey: string): ChordVoicing[]
     }
 
     // Rule 2b: mute the string immediately above the root if it's a non-root
-    // tone that also appears on a higher string — avoids muddy bass clusters
-    // e.g. C Maj7: root=C on low E, A string=E(3rd), E also on G string -> mute A
-    // Only applies to non-open voicings (open chords allow close bass intervals)
+    // 3rd/7th that also appears higher — avoids muddy bass clusters.
+    // Only on barre chords, and only if the string after it is also played
+    // (so muting doesn't create a gap that breaks the whole contiguous block).
     if (startFret > 0 && rootStringIdx >= 0 && rootStringIdx + 1 < 6 && playable[rootStringIdx + 1] !== null) {
       const adjacentFret = playable[rootStringIdx + 1] as number;
       const adjacentTone = (OPEN_STRINGS[5 - (rootStringIdx + 1)] + adjacentFret) % 12;
-      if (adjacentTone !== root) {
-        // Check if this tone appears on any higher string
+      const adjacentInterval = (adjacentTone - root + 12) % 12;
+      // Only mute 3rds and 7ths, and only when the string after is also played
+      // (muting a string between two played strings breaks contiguity)
+      // Only mute if rsi+2 is null — muting rsi+1 would otherwise create a gap
+      const nextStringEmpty = rootStringIdx + 2 >= 6 || playable[rootStringIdx + 2] === null;
+      if ([3, 4, 10, 11].includes(adjacentInterval) && nextStringEmpty) {
         const appearsHigher = playable.slice(rootStringIdx + 2).some((f, offset) => {
           if (f === null) return false;
-          const strIdx = rootStringIdx + 2 + offset;
-          return (OPEN_STRINGS[5 - strIdx] + f) % 12 === adjacentTone;
+          return (OPEN_STRINGS[5 - (rootStringIdx + 2 + offset)] + f) % 12 === adjacentTone;
         });
         if (appearsHigher) {
-          // Mute the adjacent string and verify coverage
           const temp = playable[rootStringIdx + 1];
           playable[rootStringIdx + 1] = null;
           const stillCovered = new Set<number>();
           playable.forEach((f, idx) => { if (f !== null) stillCovered.add((OPEN_STRINGS[5 - idx] + f) % 12); });
           if (![...chordSet].every(n => stillCovered.has(n))) {
-            playable[rootStringIdx + 1] = temp; // restore if needed for coverage
+            playable[rootStringIdx + 1] = temp;
           }
         }
       }
