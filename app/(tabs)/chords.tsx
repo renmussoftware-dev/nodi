@@ -40,6 +40,17 @@ export default function ChordsScreen() {
 
   function toggleDrawer() { drawerOpen ? closeDrawer() : openDrawer(); }
 
+  function changeCategory(cat: string) {
+    const filtered = Object.entries(CHORDS).filter(([, ch]) =>
+      cat === 'All' || ch.category === CAT_MAP[cat]
+    );
+    setCategory(cat);
+    if (filtered.length > 0) {
+      setSelectedChord(filtered[0][0]);
+    }
+    openDrawer();
+  }
+
   function selectChord(key: string) {
     setSelectedChord(key);
     closeDrawer();
@@ -67,7 +78,7 @@ export default function ChordsScreen() {
         </ScrollView>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
           {CATEGORIES.map(cat => (
-            <TouchableOpacity key={cat} onPress={() => setCategory(cat)}
+            <TouchableOpacity key={cat} onPress={() => changeCategory(cat)}
               style={[styles.catPill, category === cat && styles.catPillActive]} activeOpacity={0.7}>
               <Text style={[styles.catText, category === cat && styles.catTextActive]}>{cat}</Text>
             </TouchableOpacity>
