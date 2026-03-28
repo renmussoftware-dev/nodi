@@ -96,6 +96,7 @@ export function noteLabel(
 export interface ChordVoicing {
   frets: (number | null)[];
   baseFret: number;
+  rootFret: number;    // actual fret where the root note sits
   label: string;
   position: string;
 }
@@ -112,6 +113,7 @@ export function getChordVoicings(root: number, chordKey: string): ChordVoicing[]
     const endFret = startFret === 0 ? 4 : startFret + 4;
     const frets: (number | null)[] = [];
     let rootFound = false;
+    let rootFret = 1;
     const covered = new Set<number>();
 
     for (let s = 5; s >= 0; s--) {
@@ -120,7 +122,7 @@ export function getChordVoicings(root: number, chordKey: string): ChordVoicing[]
         const n = (OPEN_STRINGS[s] + f) % 12;
         if (chordSet.has(n)) {
           if (best === null) best = f;
-          if (n === root && !rootFound && s >= 3) { best = f; rootFound = true; break; }
+          if (n === root && !rootFound && s >= 3) { best = f; rootFound = true; rootFret = f; break; }
         }
       }
       frets.push(best);
@@ -144,7 +146,7 @@ export function getChordVoicings(root: number, chordKey: string): ChordVoicing[]
     const label = isOpen ? 'Open position' : `${displayBase}${displayBase === 1 ? 'st' : displayBase === 2 ? 'nd' : displayBase === 3 ? 'rd' : 'th'} fret`;
     const position = isOpen ? 'Open' : displayBase <= 3 ? 'Low' : displayBase <= 7 ? 'Mid' : 'High';
 
-    results.push({ frets, baseFret: displayBase, label, position });
+    results.push({ frets, baseFret: displayBase, rootFret, label, position });
     if (results.length >= 5) break;
   }
 

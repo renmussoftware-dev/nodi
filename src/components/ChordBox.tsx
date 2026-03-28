@@ -60,18 +60,23 @@ export default function ChordBox({ root, chordKey, compact = false }: Props) {
   return (
     <View style={compact ? styles.compactWrap : styles.wrap}>
       <Svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`}>
-        {/* Base fret indicator */}
-        {voicing.baseFret > 1 && (
-          <SvgText
-            x={pl - (compact ? 10 : 14)}
-            y={fy(1) + (compact ? 3 : 4)}
-            fontSize={compact ? 7 : 9}
-            fill={COLORS.textMuted}
-            textAnchor="middle"
-          >
-            {voicing.baseFret}fr
-          </SvgText>
-        )}
+        {/* Root fret indicator — centered in the fret cell where the root sits */}
+        {voicing.baseFret > 1 && (() => {
+          // rootFret row: fretRow = rootFret - baseFret + 1
+          const rootRow = voicing.rootFret - voicing.baseFret + 1;
+          const markerY = fy(rootRow) - fh / 2; // center of that fret cell
+          return (
+            <SvgText
+              x={pl - (compact ? 10 : 14)}
+              y={markerY + (compact ? 2.5 : 3.5)}
+              fontSize={compact ? 7 : 9}
+              fill={COLORS.textMuted}
+              textAnchor="middle"
+            >
+              {voicing.rootFret}fr
+            </SvgText>
+          );
+        })()}
 
         {/* Nut or top border */}
         <Line
