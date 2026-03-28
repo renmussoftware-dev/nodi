@@ -7,6 +7,7 @@ import { COLORS, SPACE, RADIUS } from '../../src/constants/theme';
 import { NOTES, NOTE_DISPLAY, CAGED_ORDER, CAGED_SHAPES, CAGED_COLORS } from '../../src/constants/music';
 import { useStore } from '../../src/store/useStore';
 import { getCagedCaretFret } from '../../src/utils/theory';
+import { router } from 'expo-router';
 
 const CAGED_DESCRIPTION = `The CAGED system maps the entire guitar neck using 5 repeating chord shapes based on the open C, A, G, E, and D chord forms.
 
@@ -31,6 +32,7 @@ export default function CagedScreen() {
   function goToFretboard(shape: string) {
     setMode('caged');
     setActiveCaged(shape);
+    router.push('/');
   }
 
   return (
