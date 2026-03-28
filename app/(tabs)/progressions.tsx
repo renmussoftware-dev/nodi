@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Animated, Modal,
+  Animated, Modal, Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Line, Text as SvgText, G, Rect } from 'react-native-svg';
@@ -121,6 +121,9 @@ export default function ProgressionsScreen() {
   const [bpm, setBpm] = useState(80);
   const [showModal, setShowModal] = useState(false);
   const [customChords, setCustomChords] = useState<{ degree: number; chordType: string; numeral: string }[]>([]);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerAnim = useRef(new Animated.Value(0)).current;
+  const scrimAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -155,6 +158,23 @@ export default function ProgressionsScreen() {
     return () => { if (intervalRef.current) clearInterval(intervalRef.current); };
   }, [playing, count, bpm]);
 
+  const DRAWER_W = 200;
+
+  function openDrawer() {
+    setDrawerOpen(true);
+    Animated.parallel([
+      Animated.spring(drawerAnim, { toValue: 1, useNativeDriver: true, bounciness: 0, speed: 20 }),
+      Animated.timing(scrimAnim, { toValue: 1, duration: 200, useNativeDriver: true }),
+    ]).start();
+  }
+
+  function closeDrawer() {
+    Animated.parallel([
+      Animated.spring(drawerAnim, { toValue: 0, useNativeDriver: true, bounciness: 0, speed: 20 }),
+      Animated.timing(scrimAnim, { toValue: 0, duration: 180, useNativeDriver: true }),
+    ]).start(() => setDrawerOpen(false));
+  }
+
   function goTo(i: number) {
     setActiveIdx(i);
     setPlaying(false);
@@ -171,6 +191,9 @@ export default function ProgressionsScreen() {
   }
 
   const filtered = PROGRESSIONS.filter(p => genre === 'All' || p.genre === genre);
+
+  const drawerX = drawerAnim.interpolate({ inputRange: [0, 1], outputRange: [-DRAWER_W, 0] });
+  const toggleX = drawerAnim.interpolate({ inputRange: [0, 1], outputRange: [0, DRAWER_W] });
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -208,112 +231,8 @@ export default function ProgressionsScreen() {
         </View>
       </View>
 
-      <View style={styles.body}>
-        <View style={styles.left}>
-          {subMode === 'common' && (
-            <>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.genreRow} style={{ maxHeight: 40 }}>
-                {GENRES.map(g => (
-                  <TouchableOpacity key={g} onPress={() => setGenre(g)}
-                    style={[styles.genrePill, genre === g && styles.genrePillActive]} activeOpacity={0.7}>
-                    <Text style={[styles.genreTxt, genre === g && styles.genreTxtActive]}>{g}</Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {filtered.map(p => (
-                  <TouchableOpacity key={p.name} onPress={() => pickProg(p)}
-                    style={[styles.progItem, selectedProg.name === p.name && subMode === 'common' && styles.progItemActive]}
-                    activeOpacity={0.7}>
-                    <Text style={[styles.progName, selectedProg.name === p.name && subMode === 'common' && styles.progNameActive]}
-                      numberOfLines={1}>{p.name}</Text>
-                    <View style={styles.progMeta}>
-                      <View style={styles.badge}><Text style={styles.badgeTxt}>{p.genre}</Text></View>
-                      <Text style={styles.progNums} numberOfLines={1}>{p.numerals.slice(0, 4).join(' – ')}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-                <View style={{ height: 80 }} />
-              </ScrollView>
-            </>
-          )}
-
-          {subMode === 'diatonic' && (
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.diatHeader}>Key of {NOTES[root]} major</Text>
-              {DIATONIC_MAJOR.map((d, i) => {
-                const cr = (root + d.degree) % 12;
-                return (
-                  <TouchableOpacity key={i} onPress={() => {
-                    pickProg({
-                      name: `${d.numeral} — ${NOTES[cr]} ${d.chordType}`,
-                      numerals: [d.numeral], degrees: [d.degree], chordTypes: [d.chordType],
-                      genre: 'Diatonic',
-                      description: `The ${d.numeral} chord of ${NOTES[root]} major.`,
-                    });
-                    setSubMode('common');
-                  }} style={styles.progItem} activeOpacity={0.7}>
-                    <View style={styles.diatRow}>
-                      <Text style={styles.diatNum}>{d.numeral}</Text>
-                      <View>
-                        <Text style={styles.progName}>{NOTES[cr]} {d.chordType}</Text>
-                        <Text style={styles.progNums}>{CHORDS[d.chordType]?.intervalNames.join(' · ')}</Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-              <Text style={styles.diatSubhead}>Common in {NOTES[root]}</Text>
-              {[
-                { name: 'I – IV – V',      n: ['I','IV','V'],         d: [0,5,7],   t: ['Major','Major','Major'] },
-                { name: 'I – V – vi – IV', n: ['I','V','vi','IV'],    d: [0,7,9,5], t: ['Major','Major','Minor','Major'] },
-                { name: 'ii – V – I',      n: ['ii','V','I'],         d: [2,7,0],   t: ['Minor','Major','Major'] },
-                { name: 'I – vi – IV – V', n: ['I','vi','IV','V'],    d: [0,9,5,7], t: ['Major','Minor','Major','Major'] },
-              ].map(p => (
-                <TouchableOpacity key={p.name} onPress={() => {
-                  setSubMode('common');
-                  const match = PROGRESSIONS.find(x => x.name === p.name);
-                  if (match) pickProg(match);
-                  else pickProg({ name: p.name, numerals: p.n, degrees: p.d, chordTypes: p.t, genre: 'Diatonic', description: '' });
-                }} style={styles.progItem} activeOpacity={0.7}>
-                  <Text style={styles.progName}>{p.name}</Text>
-                  <Text style={styles.progNums}>{p.n.join(' – ')}</Text>
-                </TouchableOpacity>
-              ))}
-              <View style={{ height: 80 }} />
-            </ScrollView>
-          )}
-
-          {subMode === 'custom' && (
-            <View style={{ flex: 1 }}>
-              <TouchableOpacity onPress={() => setShowModal(true)} style={styles.addBtn} activeOpacity={0.7}>
-                <Text style={styles.addBtnTxt}>+ Add chord</Text>
-              </TouchableOpacity>
-              <ScrollView showsVerticalScrollIndicator={false}>
-                {customChords.length === 0 && (
-                  <Text style={styles.customEmpty}>Tap "+ Add chord" to{'\n'}build your progression</Text>
-                )}
-                {customChords.map((c, i) => (
-                  <View key={i} style={styles.customItem}>
-                    <Text style={styles.customItemNum}>{c.numeral}</Text>
-                    <Text style={styles.customItemName} numberOfLines={1}>
-                      {NOTES[(root + c.degree) % 12]} {c.chordType}
-                    </Text>
-                    <TouchableOpacity onPress={() => {
-                      setCustomChords(ch => ch.filter((_, j) => j !== i));
-                      if (activeIdx >= customChords.length - 1) setActiveIdx(0);
-                    }} style={styles.removeBtn} activeOpacity={0.7}>
-                      <Text style={styles.removeTxt}>x</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-                <View style={{ height: 80 }} />
-              </ScrollView>
-            </View>
-          )}
-        </View>
-
+      <View style={[styles.body, { overflow: 'hidden' }]}>
+        {/* Drawer content moved below */}
         <View style={styles.right}>
           <ScrollView showsVerticalScrollIndicator={false}>
             {count > 0 ? (
@@ -378,6 +297,118 @@ export default function ProgressionsScreen() {
             <View style={{ height: 80 }} />
           </ScrollView>
         </View>
+
+        {/* Scrim */}
+        {drawerOpen && (
+          <Animated.View style={[styles.scrim, { opacity: scrimAnim }]} pointerEvents="auto">
+            <Pressable style={StyleSheet.absoluteFill} onPress={closeDrawer} />
+          </Animated.View>
+        )}
+
+        {/* Drawer */}
+        <Animated.View style={[styles.drawer, { transform: [{ translateX: drawerX }] }]}>
+          {/* Content is inserted by JS below */}
+          {drawerOpen && subMode === 'common' && (
+            <>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.genreRow} style={{ maxHeight: 40 }}>
+                {GENRES.map(g => (
+                  <TouchableOpacity key={g} onPress={() => setGenre(g)}
+                    style={[styles.genrePill, genre === g && styles.genrePillActive]} activeOpacity={0.7}>
+                    <Text style={[styles.genreTxt, genre === g && styles.genreTxtActive]}>{g}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {filtered.map(p => (
+                  <TouchableOpacity key={p.name} onPress={() => { pickProg(p); closeDrawer(); }}
+                    style={[styles.progItem, selectedProg.name === p.name && subMode === 'common' && styles.progItemActive]}
+                    activeOpacity={0.7}>
+                    <Text style={[styles.progName, selectedProg.name === p.name && subMode === 'common' && styles.progNameActive]}
+                      numberOfLines={1}>{p.name}</Text>
+                    <View style={styles.progMeta}>
+                      <View style={styles.badge}><Text style={styles.badgeTxt}>{p.genre}</Text></View>
+                      <Text style={styles.progNums} numberOfLines={1}>{p.numerals.slice(0, 4).join(' – ')}</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            </>
+          )}
+          {drawerOpen && subMode === 'diatonic' && (
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.diatHeader}>Key of {NOTES[root]} major</Text>
+              {DIATONIC_MAJOR.map((d, i) => {
+                const cr = (root + d.degree) % 12;
+                return (
+                  <TouchableOpacity key={i} onPress={() => {
+                    pickProg({ name: `${d.numeral} — ${NOTES[cr]} ${d.chordType}`, numerals: [d.numeral], degrees: [d.degree], chordTypes: [d.chordType], genre: 'Diatonic', description: `The ${d.numeral} chord of ${NOTES[root]} major.` });
+                    setSubMode('common'); closeDrawer();
+                  }} style={styles.progItem} activeOpacity={0.7}>
+                    <View style={styles.diatRow}>
+                      <Text style={styles.diatNum}>{d.numeral}</Text>
+                      <View>
+                        <Text style={styles.progName}>{NOTES[cr]} {d.chordType}</Text>
+                        <Text style={styles.progNums}>{CHORDS[d.chordType]?.intervalNames.join(' · ')}</Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+              <Text style={styles.diatSubhead}>Common in {NOTES[root]}</Text>
+              {[
+                { name: 'I – IV – V', n: ['I','IV','V'], d: [0,5,7], t: ['Major','Major','Major'] },
+                { name: 'I – V – vi – IV', n: ['I','V','vi','IV'], d: [0,7,9,5], t: ['Major','Major','Minor','Major'] },
+                { name: 'ii – V – I', n: ['ii','V','I'], d: [2,7,0], t: ['Minor','Major','Major'] },
+                { name: 'I – vi – IV – V', n: ['I','vi','IV','V'], d: [0,9,5,7], t: ['Major','Minor','Major','Major'] },
+              ].map(p => (
+                <TouchableOpacity key={p.name} onPress={() => {
+                  setSubMode('common');
+                  const match = PROGRESSIONS.find(x => x.name === p.name);
+                  if (match) pickProg(match);
+                  else pickProg({ name: p.name, numerals: p.n, degrees: p.d, chordTypes: p.t, genre: 'Diatonic', description: '' });
+                  closeDrawer();
+                }} style={styles.progItem} activeOpacity={0.7}>
+                  <Text style={styles.progName}>{p.name}</Text>
+                  <Text style={styles.progNums}>{p.n.join(' – ')}</Text>
+                </TouchableOpacity>
+              ))}
+              <View style={{ height: 40 }} />
+            </ScrollView>
+          )}
+          {drawerOpen && subMode === 'custom' && (
+            <View style={{ flex: 1 }}>
+              <TouchableOpacity onPress={() => setShowModal(true)} style={styles.addBtn} activeOpacity={0.7}>
+                <Text style={styles.addBtnTxt}>+ Add chord</Text>
+              </TouchableOpacity>
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {customChords.length === 0 && (
+                  <Text style={styles.customEmpty}>Tap + Add chord to build your progression</Text>
+                )}
+                {customChords.map((c, i) => (
+                  <View key={i} style={styles.customItem}>
+                    <Text style={styles.customItemNum}>{c.numeral}</Text>
+                    <Text style={styles.customItemName} numberOfLines={1}>{NOTES[(root + c.degree) % 12]} {c.chordType}</Text>
+                    <TouchableOpacity onPress={() => { setCustomChords(ch => ch.filter((_, j) => j !== i)); if (activeIdx >= customChords.length - 1) setActiveIdx(0); }}
+                      style={styles.removeBtn} activeOpacity={0.7}>
+                      <Text style={styles.removeTxt}>x</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+                <View style={{ height: 40 }} />
+              </ScrollView>
+            </View>
+          )}
+        </Animated.View>
+
+        {/* Toggle pill */}
+        <Animated.View style={[styles.toggleWrap, { transform: [{ translateX: toggleX }] }]}>
+          <TouchableOpacity onPress={() => drawerOpen ? closeDrawer() : openDrawer()} style={styles.togglePill} activeOpacity={0.8}>
+            <Text style={styles.toggleArrow}>{drawerOpen ? '‹' : '›'}</Text>
+            <Text style={styles.toggleLabel}>LIST</Text>
+          </TouchableOpacity>
+        </Animated.View>
       </View>
 
       <Modal visible={showModal} animationType="slide" transparent>
@@ -438,8 +469,13 @@ const styles = StyleSheet.create({
   subTabActive:   { backgroundColor: COLORS.surfaceHigh },
   subTabTxt:      { fontSize: 12, fontWeight: '500', color: COLORS.textMuted },
   subTabTxtActive:{ color: COLORS.text },
-  body:           { flex: 1, flexDirection: 'row' },
-  left:           { width: 165, borderRightWidth: 1, borderRightColor: COLORS.border },
+  body:           { flex: 1 },
+  scrim:          { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 10 },
+  drawer:         { position: 'absolute', left: 0, top: 0, bottom: 0, width: 200, backgroundColor: COLORS.surface, borderRightWidth: 1, borderRightColor: COLORS.border, zIndex: 20 },
+  toggleWrap:     { position: 'absolute', left: 0, top: '40%', zIndex: 30 },
+  togglePill:     { backgroundColor: COLORS.surfaceHigh, borderTopRightRadius: 20, borderBottomRightRadius: 20, borderWidth: 1, borderLeftWidth: 0, borderColor: COLORS.borderLight, paddingVertical: 14, paddingLeft: 6, paddingRight: 10, alignItems: 'center', gap: 4 },
+  toggleArrow:    { fontSize: 16, color: COLORS.text, fontWeight: '600', lineHeight: 18 },
+  toggleLabel:    { fontSize: 9, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 1.2 },
   genreRow:       { flexDirection: 'row', paddingHorizontal: SPACE.sm, paddingVertical: SPACE.xs, gap: 5 },
   genrePill:      { paddingHorizontal: 9, paddingVertical: 4, borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bg },
   genrePillActive:{ backgroundColor: COLORS.accent, borderColor: COLORS.accent },
