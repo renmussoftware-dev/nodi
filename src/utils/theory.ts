@@ -137,6 +137,48 @@ export function getChordVoicings(root: number, chordKey: string): ChordVoicing[]
     const pressed = frets.filter(f => f !== null && f > 0) as number[];
     if (pressed.length > 0 && Math.max(...pressed) - Math.min(...pressed) > 4) continue;
 
+    // ── Playability pass: mute strings that break contiguous fingering ──
+    // frets[0]=low E, frets[5]=high e
+    // Rule 1: find the lowest played string (root side), then mute any
+    //   string that has a gap (null) between it and the root string.
+    // Rule 2: working from highest string downward, mute strings that
+    //   are duplicate chord tones, keeping playability tight.
+    const playable = [...frets] as (number | null)[];
+
+    // Find root string index (lowest string with root note)
+    let rootStringIdx = -1;
+    for (let i = 0; i < 6; i++) {
+      const f = playable[i];
+      if (f !== null && (OPEN_STRINGS[5 - i] + f) % 12 === root) {
+        rootStringIdx = i; break;
+      }
+    }
+
+    // Mute strings below rootStringIdx (they can\'t be played cleanly)
+    if (rootStringIdx > 0) {
+      for (let i = 0; i < rootStringIdx; i++) playable[i] = null;
+    }
+
+    // Find the contiguous block from rootStringIdx upward
+    // Mute any string that has a gap after it in the played block
+    if (rootStringIdx >= 0) {
+      let lastPlayed = rootStringIdx;
+      for (let i = rootStringIdx + 1; i < 6; i++) {
+        if (playable[i] !== null) {
+          // Check for gap — if previous string (i-1) was null and i>lastPlayed+1, mute this too
+          if (i > lastPlayed + 1) { playable[i] = null; }
+          else { lastPlayed = i; }
+        }
+      }
+    }
+
+    // Verify all chord tones still covered after muting
+    const playableCovered = new Set<number>();
+    playable.forEach((f, i) => {
+      if (f !== null) playableCovered.add((OPEN_STRINGS[5 - i] + f) % 12);
+    });
+    if (![...chordSet].every(n => playableCovered.has(n))) continue;
+
     const baseFret = pressed.length > 0 ? Math.min(...pressed) : 1;
     const displayBase = startFret === 0 ? 1 : baseFret;
 
@@ -146,7 +188,7 @@ export function getChordVoicings(root: number, chordKey: string): ChordVoicing[]
     const label = isOpen ? 'Open position' : `${displayBase}${displayBase === 1 ? 'st' : displayBase === 2 ? 'nd' : displayBase === 3 ? 'rd' : 'th'} fret`;
     const position = isOpen ? 'Open' : displayBase <= 3 ? 'Low' : displayBase <= 7 ? 'Mid' : 'High';
 
-    results.push({ frets, baseFret: displayBase, rootFret, label, position });
+    results.push({ frets: playable, baseFret: displayBase, rootFret, label, position });
     if (results.length >= 5) break;
   }
 
