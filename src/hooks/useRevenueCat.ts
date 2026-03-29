@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import Purchases, { LOG_LEVEL, PurchasesPackage, CustomerInfo } from 'react-native-purchases';
 import { Platform } from 'react-native';
 
-const REVENUECAT_API_KEY_IOS = 'YOUR_REVENUECAT_IOS_PUBLIC_SDK_KEY'; // appl_...
+const REVENUECAT_API_KEY_IOS = 'appl_RISKMtoBkVaaMekfALDreNUNBRd'; // appl_...
 const ENTITLEMENT_ID = 'pro';
 
 export interface PurchaseState {
