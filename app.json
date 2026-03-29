@@ -18,7 +18,8 @@
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Fretionary uses the microphone for tuning features.",
         "UIBackgroundModes": []
-      }
+      },
+      "appleTeamId": "KHWB32323Q"
     },
     "android": {
       "adaptiveIcon": {

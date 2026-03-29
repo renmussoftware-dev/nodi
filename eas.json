@@ -33,9 +33,9 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "YOUR_APPLE_ID_EMAIL",
+        "appleId": "renmussoftware@gmail.com",
         "ascAppId": "6761344883",
-        "appleTeamId": "YOUR_APPLE_TEAM_ID"
+        "appleTeamId": "KHWB32323Q"
       }
     }
   }
