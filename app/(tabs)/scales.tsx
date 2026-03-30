@@ -37,6 +37,15 @@ export default function ScalesScreen() {
 
   function selectScale(key: string) { setSelectedScale(key); closeDrawer(); }
 
+  function changeCategory(cat: string) {
+    const filtered = Object.entries(SCALES).filter(([, sc]) =>
+      cat === 'All' || sc.category === CAT_MAP[cat]
+    );
+    setCategory(cat);
+    if (filtered.length > 0) setSelectedScale(filtered[0][0]);
+    openDrawer();
+  }
+
   const filteredScales = Object.entries(SCALES).filter(([, sc]) =>
     category === 'All' || sc.category === CAT_MAP[category]
   );
@@ -61,7 +70,7 @@ export default function ScalesScreen() {
         </ScrollView>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catRow}>
           {CATEGORIES.map(cat => (
-            <TouchableOpacity key={cat} onPress={() => setCategory(cat)}
+            <TouchableOpacity key={cat} onPress={() => changeCategory(cat)}
               style={[styles.catPill, category === cat && styles.catPillActive]} activeOpacity={0.7}>
               <Text style={[styles.catText, category === cat && styles.catTextActive]}>{cat}</Text>
             </TouchableOpacity>
