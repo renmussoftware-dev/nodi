@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { ScrollView, View, StyleSheet } from 'react-native';
+import { ScrollView, View, StyleSheet, useWindowDimensions } from 'react-native';
 import Svg, {
   Rect, Circle, Line, Text as SvgText, G, Defs, Pattern,
 } from 'react-native-svg';
@@ -16,24 +16,28 @@ import { useStore } from '../store/useStore';
 
 const TOTAL_FRETS = 15;
 const STR_COUNT = 6;
-const LEFT_PAD = 28;
-const TOP_PAD = 24;
-const FRET_W = 52;
-const STR_H = 34;
-const NUT_W = 6;
-const DOT_R = 13;
 const INLAY_FRETS = [3, 5, 7, 9, 12, 15];
 
-const SVG_W = LEFT_PAD + NUT_W + TOTAL_FRETS * FRET_W + 16;
-const SVG_H = TOP_PAD + (STR_COUNT - 1) * STR_H + 36;
-
-function fretX(f: number) {
-  if (f === 0) return LEFT_PAD + NUT_W / 2;
-  return LEFT_PAD + NUT_W + f * FRET_W - FRET_W / 2;
-}
-function strY(s: number) { return TOP_PAD + s * STR_H; }
-
 export default function Fretboard() {
+  const { width: screenW } = useWindowDimensions();
+  const isTablet = screenW >= 768;
+
+  // Scale fretboard dimensions based on screen width
+  const LEFT_PAD = isTablet ? 36 : 28;
+  const TOP_PAD = isTablet ? 32 : 24;
+  const FRET_W = isTablet ? Math.floor((screenW - 100) / TOTAL_FRETS) : 52;
+  const STR_H = isTablet ? 44 : 34;
+  const NUT_W = 6;
+  const DOT_R = isTablet ? 17 : 13;
+  const SVG_W = LEFT_PAD + NUT_W + TOTAL_FRETS * FRET_W + 16;
+  const SVG_H = TOP_PAD + (STR_COUNT - 1) * STR_H + 36;
+
+  function fretX(f: number) {
+    if (f === 0) return LEFT_PAD + NUT_W / 2;
+    return LEFT_PAD + NUT_W + f * FRET_W - FRET_W / 2;
+  }
+  function strY(s: number) { return TOP_PAD + s * STR_H; }
+
   const { root, scaleKey, chordKey, mode, labelMode, activePosition, activeCaged } = useStore();
 
   const activeNotes = useMemo(() => {

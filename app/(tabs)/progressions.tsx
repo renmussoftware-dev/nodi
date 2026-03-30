@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Animated, Modal, Pressable,
+  Animated, Modal, Pressable, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle, Line, Text as SvgText, G, Rect } from 'react-native-svg';
@@ -26,19 +26,23 @@ const DIATONIC_MAJOR = [
 ];
 
 
-// Fretboard constants
-const FBL = 28, FBT = 20, FBFW = 46, FBSH = 28, FBNW = 5, FBDR = 11, FBFRETS = 12, FBSTR = 6;
-const FBW = FBL + FBNW + FBFRETS * FBFW + 12;
-const FBH = FBT + (FBSTR - 1) * FBSH + 28;
+// Fretboard constants (base — overridden inside component for tablet)
 const INLAYS = [3, 5, 7, 9, 12];
-function fbX(f: number) {
-  return f === 0 ? FBL + FBNW / 2 : FBL + FBNW + f * FBFW - FBFW / 2;
-}
-function fbY(s: number) { return FBT + s * FBSH; }
 
 function ProgFretboard({ chordRoot, chordKey, animVal }: {
   chordRoot: number; chordKey: string; animVal: Animated.Value;
 }) {
+  const { width: screenW } = useWindowDimensions();
+  const isTablet = screenW >= 768;
+  const FBL = 28, FBT = 20, FBNW = 5, FBFRETS = 12, FBSTR = 6;
+  const FBFW = isTablet ? Math.floor((screenW - 60) / FBFRETS) : 46;
+  const FBSH = isTablet ? 38 : 28;
+  const FBDR = isTablet ? 14 : 11;
+  const FBW = FBL + FBNW + FBFRETS * FBFW + 12;
+  const FBH = FBT + (FBSTR - 1) * FBSH + 28;
+  function fbX(f: number) { return f === 0 ? FBL + FBNW / 2 : FBL + FBNW + f * FBFW - FBFW / 2; }
+  function fbY(s: number) { return FBT + s * FBSH; }
+
   const ch = CHORDS[chordKey];
   const chordNotes = ch ? ch.intervals.map((iv: number) => (chordRoot + iv) % 12) : [];
   const chordSet = new Set(chordNotes);
@@ -114,6 +118,8 @@ function MiniBox({ root, chordKey, numeral, active, onPress }: {
 
 
 export default function ProgressionsScreen() {
+  const { width: screenW } = useWindowDimensions();
+  const isTablet = screenW >= 768;
   const { root, setRoot } = useStore();
   const [subMode, setSubMode] = useState<SubMode>('common');
   const [genre, setGenre] = useState('All');
@@ -530,7 +536,7 @@ const styles = StyleSheet.create({
   activeNum:      { fontSize: 12, fontWeight: '600', color: COLORS.accent, letterSpacing: 1, marginBottom: 2 },
   activeName:     { fontSize: 24, fontWeight: '700', color: COLORS.text, marginBottom: 3 },
   activeIntervals:{ fontSize: 10, color: COLORS.textMuted, letterSpacing: 0.3 },
-  fbWrap:         { backgroundColor: COLORS.surface, borderTopWidth: 1, borderBottomWidth: 1, borderColor: COLORS.border, paddingVertical: SPACE.sm, marginBottom: SPACE.md },
+  fbWrap:         { backgroundColor: COLORS.surface, borderTopWidth: 1, borderBottomWidth: 1, borderColor: COLORS.border, paddingVertical: SPACE.sm, marginBottom: SPACE.md, alignItems: 'center' },
   ctrlRow:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACE.md, gap: 8, marginBottom: SPACE.sm },
   navBtn:         { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center' },
   navTxt:         { fontSize: 14, color: COLORS.textMuted, fontWeight: '600' },

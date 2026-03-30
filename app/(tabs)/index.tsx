@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Fretboard from '../../src/components/Fretboard';
 import TopBar from '../../src/components/TopBar';
@@ -18,6 +18,9 @@ const LABEL_OPTIONS = [
 ];
 
 export default function FretboardScreen() {
+  const { width: screenW } = useWindowDimensions();
+  const isTablet = screenW >= 768;
+
   const {
     mode, root, scaleKey, setScaleKey,
     chordKey, setChordKey, labelMode, setLabelMode,
@@ -55,18 +58,8 @@ export default function FretboardScreen() {
     })),
   ];
 
-  return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <TopBar />
-
-      {/* Fretboard */}
-      <View style={styles.fbWrap}>
-        <Fretboard />
-      </View>
-
-      {/* Controls scroll area */}
-      <ScrollView style={styles.controls} showsVerticalScrollIndicator={false}>
-
+  const controlsContent = (
+    <>
         {/* Scale / Chord selector */}
         {mode === 'scales' && (
           <View style={styles.section}>
@@ -74,64 +67,42 @@ export default function FretboardScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.pillRow}>
               {scaleOptions.map(opt => (
-                <TouchableOpacity
-                  key={opt.value}
-                  onPress={() => setScaleKey(opt.value)}
-                  style={[styles.pill, scaleKey === opt.value && styles.pillActive]}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.pillText, scaleKey === opt.value && styles.pillTextActive]}>
-                    {opt.label}
-                  </Text>
+                <TouchableOpacity key={opt.value} onPress={() => setScaleKey(opt.value)}
+                  style={[styles.pill, scaleKey === opt.value && styles.pillActive]} activeOpacity={0.7}>
+                  <Text style={[styles.pillText, scaleKey === opt.value && styles.pillTextActive]}>{opt.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
         )}
-
         {mode === 'chords' && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Chord type</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.pillRow}>
               {chordOptions.map(opt => (
-                <TouchableOpacity
-                  key={opt.value}
-                  onPress={() => setChordKey(opt.value)}
-                  style={[styles.pill, chordKey === opt.value && styles.pillActive]}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.pillText, chordKey === opt.value && styles.pillTextActive]}>
-                    {opt.label}
-                  </Text>
+                <TouchableOpacity key={opt.value} onPress={() => setChordKey(opt.value)}
+                  style={[styles.pill, chordKey === opt.value && styles.pillActive]} activeOpacity={0.7}>
+                  <Text style={[styles.pillText, chordKey === opt.value && styles.pillTextActive]}>{opt.label}</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
           </View>
         )}
-
-        {/* Position selector (scales / caged) */}
         {mode === 'scales' && positions.length > 0 && (
           <View style={styles.section}>
-            <PillSelector
-              label="Position"
-              options={posOptions}
+            <PillSelector label="Position" options={posOptions}
               value={activePosition === null ? 'all' : String(activePosition)}
               onChange={v => setActivePosition(v === null || v === 'all' ? null : Number(v))}
-              allowDeselect={false}
-            />
+              allowDeselect={false} />
           </View>
         )}
-
         {mode === 'caged' && (
           <View style={styles.section}>
-            <PillSelector
-              label="CAGED shape"
-              options={cagedOptions}
+            <PillSelector label="CAGED shape" options={cagedOptions}
               value={activeCaged ?? 'all'}
               onChange={v => setActiveCaged(v === 'all' ? null : v)}
-              allowDeselect={false}
-            />
+              allowDeselect={false} />
             {activeCaged && (
               <View style={styles.cagedInfo}>
                 <Text style={styles.cagedInfoText}>
@@ -141,22 +112,42 @@ export default function FretboardScreen() {
             )}
           </View>
         )}
-
-        {/* Label selector */}
         <View style={styles.section}>
-          <PillSelector
-            label="Note labels"
-            options={LABEL_OPTIONS}
-            value={labelMode}
-            onChange={v => v && setLabelMode(v as any)}
-            allowDeselect={false}
-          />
+          <PillSelector label="Note labels" options={LABEL_OPTIONS} value={labelMode}
+            onChange={v => v && setLabelMode(v as any)} allowDeselect={false} />
         </View>
-
         <View style={{ height: SPACE.xxl }} />
-      </ScrollView>
+    </>
+  );
 
-      <InfoPanel />
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <TopBar />
+
+      {isTablet ? (
+        /* ── iPad: fretboard fills top, controls in scrollable row below ── */
+        <View style={styles.tabletLayout}>
+          <View style={styles.tabletFbWrap}>
+            <Fretboard />
+          </View>
+          <ScrollView style={styles.tabletControls} showsVerticalScrollIndicator={false}>
+            {controlsContent}
+          </ScrollView>
+          <InfoPanel />
+        </View>
+      ) : (
+        /* ── Phone: original vertical stack ── */
+        <View style={{ flex: 1 }}>
+          <View style={styles.fbWrap}>
+            <Fretboard />
+          </View>
+          <ScrollView style={styles.controls} showsVerticalScrollIndicator={false}>
+
+            {controlsContent}
+          </ScrollView>
+          <InfoPanel />
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -170,6 +161,10 @@ const styles = StyleSheet.create({
     paddingVertical: SPACE.md,
   },
   controls: { flex: 1 },
+  // iPad layout
+  tabletLayout:    { flex: 1 },
+  tabletFbWrap:    { backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border, paddingVertical: SPACE.lg },
+  tabletControls:  { flex: 1 },
   section: { marginTop: SPACE.lg },
   sectionLabel: {
     fontSize: 11,
