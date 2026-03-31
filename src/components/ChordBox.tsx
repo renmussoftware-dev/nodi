@@ -26,8 +26,8 @@ export default function ChordBox({ root, chordKey, compact = false }: Props) {
 
   // Scale full-size dimensions based on available width
   const scale = compact ? 1 : isTablet ? Math.min(2.2, (screenW * 0.55) / 160) : 1;
-  const PAD_L = Math.round(32 * scale);
-  const PAD_T = Math.round(36 * scale);
+  const PAD_L = Math.round(44 * scale);  // extra left room for fret number marker
+  const PAD_T = Math.round(44 * scale);  // extra top padding so markers above nut aren't clipped
   const FRET_H = Math.round(28 * scale);
   const STR_GAP = Math.round(24 * scale);
   const DOT_R = Math.round(10 * scale);
@@ -65,14 +65,14 @@ export default function ChordBox({ root, chordKey, compact = false }: Props) {
       <Svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`}>
         {/* Root fret indicator — centered in the fret cell where the root sits */}
         {voicing.baseFret > 1 && (() => {
-          // rootFret row: fretRow = rootFret - baseFret + 1
           const rootRow = voicing.rootFret - voicing.baseFret + 1;
-          const markerY = fy(rootRow) - fh / 2; // center of that fret cell
+          const markerY = fy(rootRow) - fh / 2;
+          const markerX = compact ? pl - 10 : Math.max(12, pl - Math.round(14 * scale));
           return (
             <SvgText
-              x={pl - (compact ? 10 : 14)}
-              y={markerY + (compact ? 2.5 : 3.5)}
-              fontSize={compact ? 7 : 9}
+              x={markerX}
+              y={markerY + (compact ? 2.5 : Math.round(3.5 * scale))}
+              fontSize={compact ? 7 : Math.round(9 * scale)}
               fill={COLORS.textMuted}
               textAnchor="middle"
             >
