@@ -76,7 +76,11 @@ export default function ChordsScreen() {
         <Text style={styles.title}>Chord Library</Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.noteRow}>
           {NOTES.map((note, i) => (
-            <TouchableOpacity key={note} onPress={() => setRoot(i)}
+            <TouchableOpacity key={note} onPress={() => {
+                setRoot(i);
+                const voicings = getChordVoicings(i, selectedChord);
+                if (voicings.length > 0) playChord(voicings[0].frets);
+              }}
               style={[styles.notePill, root === i && styles.notePillActive]} activeOpacity={0.7}>
               <Text style={[styles.noteText, root === i && styles.noteTextActive]}>{NOTE_DISPLAY[note] || note}</Text>
             </TouchableOpacity>
