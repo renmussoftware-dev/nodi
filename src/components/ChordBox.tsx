@@ -261,7 +261,7 @@ const styles = StyleSheet.create({
   navArrow:       { fontSize: 18, color: COLORS.text, lineHeight: 22 },
   navArrowCompact:{ fontSize: 13, color: COLORS.textMuted, lineHeight: 17 },
 
-  navCenter:      { flex: 1, alignItems: 'center', gap: 4 },
+  navCenter:      { alignItems: 'center', gap: 4 },
   voicingLabel:   { fontSize: 11, fontWeight: '500', color: COLORS.textMuted },
 
   dotRow:         { flexDirection: 'row', gap: 5 },
@@ -270,8 +270,8 @@ const styles = StyleSheet.create({
   dotActive:      { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
 
   pillRow:        { flexDirection: 'row', gap: 5, paddingHorizontal: 4, marginTop: 6 },
-  pill:           { paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surfaceHigh },
+  pill:           { height: 30, paddingHorizontal: 14, paddingVertical: 0, borderRadius: 15, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surfaceHigh, alignItems: 'center', justifyContent: 'center' },
   pillActive:     { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
-  pillText:       { fontSize: 11, fontWeight: '500', color: COLORS.textMuted },
+  pillText:       { fontSize: 11, fontWeight: '500', color: COLORS.textMuted, lineHeight: 14 },
   pillTextActive: { color: '#fff' },
 });
