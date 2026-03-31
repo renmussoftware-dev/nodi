@@ -11,6 +11,9 @@ import { PROGRESSIONS, GENRES, type Progression } from '../../src/constants/prog
 import ChordBox from '../../src/components/ChordBox';
 import { useStore } from '../../src/store/useStore';
 import { useAudioEngine } from '../../src/hooks/useAudioEngine';
+import { useProGate } from '../../src/hooks/useProGate';
+import { ProBanner } from '../../src/components/ProLock';
+import { isProgressionFree } from '../../src/constants/subscription';
 import { getChordVoicings } from '../../src/utils/theory';
 
 type SubMode = 'common' | 'diatonic' | 'custom';
@@ -121,6 +124,7 @@ export default function ProgressionsScreen() {
   const { width: screenW } = useWindowDimensions();
   const isTablet = screenW >= 768;
   const { root, setRoot } = useStore();
+  const { isPro, requirePro } = useProGate();
   const [subMode, setSubMode] = useState<SubMode>('common');
   const [genre, setGenre] = useState('All');
   const [selectedProg, setSelectedProg] = useState<Progression>(PROGRESSIONS[0]);
@@ -281,10 +285,13 @@ export default function ProgressionsScreen() {
                   <TouchableOpacity onPress={() => goTo((activeIdx - 1 + count) % count)} style={styles.navBtn} activeOpacity={0.7}>
                     <Text style={styles.navTxt}>{'<'}</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setPlaying(v => !v)}
+                  <TouchableOpacity onPress={() => {
+                      if (!isPro) { requirePro(() => {}); return; }
+                      setPlaying(v => !v);
+                    }}
                     style={[styles.playBtn, playing && styles.playBtnOn]} activeOpacity={0.7}>
                     <Text style={[styles.playTxt, playing && styles.playTxtOn]}>
-                      {playing ? 'Pause' : 'Play'}
+                      {!isPro ? '🔒 Play' : playing ? 'Pause' : 'Play'}
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => goTo((activeIdx + 1) % count)} style={styles.navBtn} activeOpacity={0.7}>
@@ -350,18 +357,28 @@ export default function ProgressionsScreen() {
                 ))}
               </ScrollView>
               <ScrollView showsVerticalScrollIndicator={false}>
-                {filtered.map(p => (
-                  <TouchableOpacity key={p.name} onPress={() => { pickProg(p); closeDrawer(); }}
-                    style={[styles.progItem, selectedProg.name === p.name && subMode === 'common' && styles.progItemActive]}
-                    activeOpacity={0.7}>
-                    <Text style={[styles.progName, selectedProg.name === p.name && subMode === 'common' && styles.progNameActive]}
-                      numberOfLines={1}>{p.name}</Text>
-                    <View style={styles.progMeta}>
-                      <View style={styles.badge}><Text style={styles.badgeTxt}>{p.genre}</Text></View>
-                      <Text style={styles.progNums} numberOfLines={1}>{p.numerals.slice(0, 4).join(' – ')}</Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
+                {!isPro && <ProBanner />}
+                {filtered.map(p => {
+                  const locked = !isPro && !isProgressionFree(p.name);
+                  return (
+                    <TouchableOpacity key={p.name} onPress={() => {
+                      if (locked) { requirePro(() => { pickProg(p); closeDrawer(); }); return; }
+                      pickProg(p); closeDrawer();
+                    }}
+                      style={[styles.progItem, selectedProg.name === p.name && subMode === 'common' && styles.progItemActive, locked && { opacity: 0.5 }]}
+                      activeOpacity={0.7}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <Text style={[styles.progName, selectedProg.name === p.name && subMode === 'common' && styles.progNameActive]}
+                          numberOfLines={1}>{p.name}</Text>
+                        {locked && <Text style={{ fontSize: 12 }}>🔒</Text>}
+                      </View>
+                      <View style={styles.progMeta}>
+                        <View style={styles.badge}><Text style={styles.badgeTxt}>{p.genre}</Text></View>
+                        <Text style={styles.progNums} numberOfLines={1}>{p.numerals.slice(0, 4).join(' – ')}</Text>
+                      </View>
+                    </TouchableOpacity>
+                  );
+                })}
                 <View style={{ height: 40 }} />
               </ScrollView>
             </>

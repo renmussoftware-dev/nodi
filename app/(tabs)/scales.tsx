@@ -5,6 +5,9 @@ import { COLORS, SPACE, RADIUS } from '../../src/constants/theme';
 import { NOTES, NOTE_DISPLAY, SCALES, COLORS as MUSIC_COLORS } from '../../src/constants/music';
 import { useStore } from '../../src/store/useStore';
 import { getScaleNotes } from '../../src/utils/theory';
+import { useProGate } from '../../src/hooks/useProGate';
+import { ProBanner } from '../../src/components/ProLock';
+import { isScaleFree } from '../../src/constants/subscription';
 
 const CATEGORIES = ['All', 'Major', 'Minor', 'Pentatonic', 'Modes', 'Other'];
 const CAT_MAP: Record<string, string> = {
@@ -14,6 +17,7 @@ const DRAWER_W = 190;
 
 export default function ScalesScreen() {
   const { root, setRoot } = useStore();
+  const { isPro, requirePro } = useProGate();
   const [category, setCategory] = useState('All');
   const [selectedScale, setSelectedScale] = useState('Major');
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -35,7 +39,14 @@ export default function ScalesScreen() {
     ]).start(() => setDrawerOpen(false));
   }
 
-  function selectScale(key: string) { setSelectedScale(key); closeDrawer(); }
+  function selectScale(key: string) {
+    if (!isScaleFree(key)) {
+      requirePro(() => { setSelectedScale(key); closeDrawer(); });
+      return;
+    }
+    setSelectedScale(key);
+    closeDrawer();
+  }
 
   function changeCategory(cat: string) {
     const filtered = Object.entries(SCALES).filter(([, sc]) =>
@@ -141,13 +152,21 @@ export default function ScalesScreen() {
 
         <Animated.View style={[styles.drawer, { transform: [{ translateX: drawerX }] }]}>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {filteredScales.map(([key]) => (
-              <TouchableOpacity key={key} onPress={() => selectScale(key)}
-                style={[styles.scaleItem, selectedScale === key && styles.scaleItemActive]} activeOpacity={0.7}>
-                <Text style={[styles.scaleName, selectedScale === key && styles.scaleNameActive]}>{key}</Text>
-                <Text style={styles.scaleCategory}>{SCALES[key].category}</Text>
-              </TouchableOpacity>
-            ))}
+            {!isPro && <ProBanner />}
+            {filteredScales.map(([key]) => {
+              const locked = !isPro && !isScaleFree(key);
+              return (
+                <TouchableOpacity key={key} onPress={() => selectScale(key)}
+                  style={[styles.scaleItem, selectedScale === key && styles.scaleItemActive, locked && styles.lockedItem]}
+                  activeOpacity={0.7}>
+                  <View style={styles.scaleItemInner}>
+                    <Text style={[styles.scaleName, selectedScale === key && styles.scaleNameActive, locked && styles.lockedText]}>{key}</Text>
+                    <Text style={styles.scaleCategory}>{SCALES[key].category}</Text>
+                  </View>
+                  {locked && <Text style={styles.lockIcon}>🔒</Text>}
+                </TouchableOpacity>
+              );
+            })}
             <View style={{ height: 40 }} />
           </ScrollView>
         </Animated.View>
@@ -201,6 +220,10 @@ const styles = StyleSheet.create({
   drawer:       { position: 'absolute', left: 0, top: 0, bottom: 0, width: DRAWER_W, backgroundColor: COLORS.surface, borderRightWidth: 1, borderRightColor: COLORS.border, zIndex: 20 },
   scaleItem:    { paddingVertical: 11, paddingHorizontal: SPACE.md, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   scaleItemActive: { backgroundColor: COLORS.surfaceHigh },
+  scaleItemInner: { flex: 1 },
+  lockedItem:   { opacity: 0.5 },
+  lockedText:   { color: COLORS.textMuted },
+  lockIcon:     { fontSize: 12, marginRight: 4 },
   scaleName:    { fontSize: 13, fontWeight: '600', color: COLORS.text, marginBottom: 2 },
   scaleNameActive: { color: COLORS.accent },
   scaleCategory:{ fontSize: 10, color: COLORS.textFaint, textTransform: 'capitalize' },

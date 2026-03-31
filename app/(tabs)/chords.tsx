@@ -9,6 +9,9 @@ import { COLORS, SPACE, RADIUS } from '../../src/constants/theme';
 import { NOTES, NOTE_DISPLAY, CHORDS } from '../../src/constants/music';
 import { useStore } from '../../src/store/useStore';
 import { useAudioEngine } from '../../src/hooks/useAudioEngine';
+import { useProGate } from '../../src/hooks/useProGate';
+import { ProBanner } from '../../src/components/ProLock';
+import { isChordFree } from '../../src/constants/subscription';
 import { getChordVoicings } from '../../src/utils/theory';
 
 const CATEGORIES = ['All', 'Triads', 'Seventh', 'Extended', 'Sus'];
@@ -21,6 +24,7 @@ export default function ChordsScreen() {
   const { width: screenW } = useWindowDimensions();
   const isTablet = screenW >= 768;
   const { root, setRoot } = useStore();
+  const { isPro, requirePro } = useProGate();
   const { playChord } = useAudioEngine();
   const [category, setCategory] = useState('All');
   const [selectedChord, setSelectedChord] = useState('Major');
@@ -55,6 +59,15 @@ export default function ChordsScreen() {
   }
 
   function selectChord(key: string) {
+    if (!isChordFree(key)) {
+      requirePro(() => {
+        setSelectedChord(key);
+        closeDrawer();
+        const voicings = getChordVoicings(root, key);
+        if (voicings.length > 0) playChord(voicings[0].frets);
+      });
+      return;
+    }
     setSelectedChord(key);
     closeDrawer();
     const voicings = getChordVoicings(root, key);
@@ -162,15 +175,23 @@ export default function ChordsScreen() {
         {/* Drawer */}
         <Animated.View style={[styles.drawer, { transform: [{ translateX: drawerX }] }]}>
           <ScrollView showsVerticalScrollIndicator={false}>
-            {filteredChords.map(([key, ch]) => (
-              <TouchableOpacity key={key} onPress={() => selectChord(key)}
-                style={[styles.chordItem, selectedChord === key && styles.chordItemActive]} activeOpacity={0.7}>
-                <Text style={[styles.chordName, selectedChord === key && styles.chordNameActive]} numberOfLines={1}>
-                  {NOTES[root]} {key}
-                </Text>
-                <Text style={styles.chordIntervals} numberOfLines={1}>{ch.intervalNames.join(' · ')}</Text>
-              </TouchableOpacity>
-            ))}
+            {!isPro && <ProBanner />}
+            {filteredChords.map(([key, ch]) => {
+              const locked = !isPro && !isChordFree(key);
+              return (
+                <TouchableOpacity key={key} onPress={() => selectChord(key)}
+                  style={[styles.chordItem, selectedChord === key && styles.chordItemActive, locked && { opacity: 0.5 }]}
+                  activeOpacity={0.7}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.chordName, selectedChord === key && styles.chordNameActive]} numberOfLines={1}>
+                      {NOTES[root]} {key}
+                    </Text>
+                    <Text style={styles.chordIntervals} numberOfLines={1}>{ch.intervalNames.join(' · ')}</Text>
+                  </View>
+                  {locked && <Text style={{ fontSize: 12, marginRight: 4 }}>🔒</Text>}
+                </TouchableOpacity>
+              );
+            })}
             <View style={{ height: 40 }} />
           </ScrollView>
         </Animated.View>

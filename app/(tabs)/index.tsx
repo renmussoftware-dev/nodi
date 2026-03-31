@@ -9,6 +9,8 @@ import { COLORS, SPACE, RADIUS } from '../../src/constants/theme';
 import { SCALES, CHORDS, CAGED_ORDER, CAGED_COLORS, CAGED_SHAPES, POSITION_COLORS } from '../../src/constants/music';
 import { useStore } from '../../src/store/useStore';
 import { getScalePositions } from '../../src/utils/theory';
+import { useProGate } from '../../src/hooks/useProGate';
+import { isScaleFree, isChordFree } from '../../src/constants/subscription';
 
 const LABEL_OPTIONS = [
   { label: 'Note', value: 'name' },
@@ -20,6 +22,7 @@ const LABEL_OPTIONS = [
 export default function FretboardScreen() {
   const { width: screenW } = useWindowDimensions();
   const isTablet = screenW >= 768;
+  const { isPro, requirePro } = useProGate();
 
   const {
     mode, root, scaleKey, setScaleKey,
@@ -60,48 +63,71 @@ export default function FretboardScreen() {
 
   const controlsContent = (
     <>
-        {/* Scale / Chord selector */}
+        {/* Scale selector */}
         {mode === 'scales' && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Scale</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.pillRow}>
-              {scaleOptions.map(opt => (
-                <TouchableOpacity key={opt.value} onPress={() => setScaleKey(opt.value)}
-                  style={[styles.pill, scaleKey === opt.value && styles.pillActive]} activeOpacity={0.7}>
-                  <Text style={[styles.pillText, scaleKey === opt.value && styles.pillTextActive]}>{opt.label}</Text>
-                </TouchableOpacity>
-              ))}
+              {scaleOptions.map(opt => {
+                const locked = !isPro && !isScaleFree(opt.value);
+                return (
+                  <TouchableOpacity key={opt.value}
+                    onPress={() => locked ? requirePro(() => setScaleKey(opt.value)) : setScaleKey(opt.value)}
+                    style={[styles.pill, scaleKey === opt.value && styles.pillActive, locked && styles.pillLocked]}
+                    activeOpacity={0.7}>
+                    <Text style={[styles.pillText, scaleKey === opt.value && styles.pillTextActive]}>
+                      {locked ? '🔒 ' : ''}{opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
         )}
+        {/* Chord selector */}
         {mode === 'chords' && (
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>Chord type</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.pillRow}>
-              {chordOptions.map(opt => (
-                <TouchableOpacity key={opt.value} onPress={() => setChordKey(opt.value)}
-                  style={[styles.pill, chordKey === opt.value && styles.pillActive]} activeOpacity={0.7}>
-                  <Text style={[styles.pillText, chordKey === opt.value && styles.pillTextActive]}>{opt.label}</Text>
-                </TouchableOpacity>
-              ))}
+              {chordOptions.map(opt => {
+                const locked = !isPro && !isChordFree(opt.value);
+                return (
+                  <TouchableOpacity key={opt.value}
+                    onPress={() => locked ? requirePro(() => setChordKey(opt.value)) : setChordKey(opt.value)}
+                    style={[styles.pill, chordKey === opt.value && styles.pillActive, locked && styles.pillLocked]}
+                    activeOpacity={0.7}>
+                    <Text style={[styles.pillText, chordKey === opt.value && styles.pillTextActive]}>
+                      {locked ? '🔒 ' : ''}{opt.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
         )}
+        {/* Position selector */}
         {mode === 'scales' && positions.length > 0 && (
           <View style={styles.section}>
             <PillSelector label="Position" options={posOptions}
               value={activePosition === null ? 'all' : String(activePosition)}
-              onChange={v => setActivePosition(v === null || v === 'all' ? null : Number(v))}
+              onChange={v => {
+                if (v !== null && v !== 'all' && !isPro) { requirePro(() => setActivePosition(Number(v))); return; }
+                setActivePosition(v === null || v === 'all' ? null : Number(v));
+              }}
               allowDeselect={false} />
           </View>
         )}
+        {/* CAGED shape selector */}
         {mode === 'caged' && (
           <View style={styles.section}>
             <PillSelector label="CAGED shape" options={cagedOptions}
               value={activeCaged ?? 'all'}
-              onChange={v => setActiveCaged(v === 'all' ? null : v)}
+              onChange={v => {
+                if (v !== null && v !== 'all' && !isPro) { requirePro(() => setActiveCaged(v)); return; }
+                setActiveCaged(v === 'all' ? null : v);
+              }}
               allowDeselect={false} />
             {activeCaged && (
               <View style={styles.cagedInfo}>
@@ -192,6 +218,9 @@ const styles = StyleSheet.create({
   pillActive: {
     backgroundColor: COLORS.accent,
     borderColor: COLORS.accent,
+  },
+  pillLocked: {
+    opacity: 0.5,
   },
   pillText: {
     fontSize: 13,
