@@ -720,10 +720,79 @@
     transform: none;
   }
 
+  /* ── HAMBURGER ── */
+  .nav-hamburger {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    z-index: 200;
+  }
+  .nav-hamburger span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: var(--text);
+    border-radius: 2px;
+    transition: transform 0.25s, opacity 0.25s;
+    transform-origin: center;
+  }
+  .nav-hamburger.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .nav-hamburger.open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+  .nav-hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  /* ── MOBILE DRAWER ── */
+  .mobile-menu {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(10,10,11,0.97);
+    backdrop-filter: blur(20px);
+    z-index: 150;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s;
+  }
+  .mobile-menu.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+  .mobile-menu a {
+    font-family: 'DM Serif Display', serif;
+    font-size: 32px;
+    color: var(--muted);
+    text-decoration: none;
+    padding: 12px 32px;
+    transition: color 0.15s;
+    letter-spacing: -0.5px;
+  }
+  .mobile-menu a:hover { color: var(--text); }
+  .mobile-menu .mobile-cta {
+    margin-top: 24px;
+    background: var(--gold);
+    color: #1a1400;
+    font-family: 'Instrument Sans', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    padding: 14px 40px;
+    border-radius: 100px;
+    letter-spacing: 0;
+  }
+
   /* ── RESPONSIVE ── */
   @media (max-width: 900px) {
     nav { padding: 16px 24px; }
     .nav-links { display: none; }
+    .nav-cta { display: none; }
+    .nav-hamburger { display: flex; }
+    .mobile-menu { display: flex; }
     .hero { padding: 100px 24px 60px; }
     .features-section, .chord-section, .caged-section, .progressions-section, .pricing-section, .fretboard-section { padding: 60px 24px; }
     .features-grid { grid-template-columns: 1fr; }
@@ -745,7 +814,20 @@
     <li><a href="#pricing">Pricing</a></li>
   </ul>
   <a href="#pricing" class="nav-cta">Download Free</a>
+  <button class="nav-hamburger" id="hamburger" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
 </nav>
+
+<!-- MOBILE MENU -->
+<div class="mobile-menu" id="mobileMenu">
+  <a href="#features" class="mobile-link">Features</a>
+  <a href="#chords" class="mobile-link">Chords</a>
+  <a href="#caged" class="mobile-link">CAGED</a>
+  <a href="#progressions" class="mobile-link">Progressions</a>
+  <a href="#pricing" class="mobile-link">Pricing</a>
+  <a href="#pricing" class="mobile-cta mobile-link">Download Free</a>
+</div>
 
 <!-- HERO -->
 <section class="hero">
@@ -1351,6 +1433,42 @@
     entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); });
   }, { threshold: 0.1 });
   document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // ── Mobile hamburger menu ──
+  const hamburger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobileMenu');
+
+  function toggleMenu(open) {
+    hamburger.classList.toggle('open', open);
+    mobileMenu.classList.toggle('open', open);
+    document.body.style.overflow = open ? 'hidden' : '';
+  }
+
+  hamburger.addEventListener('click', () => {
+    toggleMenu(!mobileMenu.classList.contains('open'));
+  });
+
+  // Close menu and smooth scroll when a link is clicked
+  document.querySelectorAll('.mobile-link').forEach(link => {
+    link.addEventListener('click', e => {
+      const href = link.getAttribute('href');
+      if (href && href.startsWith('#') && href.length > 1) {
+        e.preventDefault();
+        toggleMenu(false);
+        setTimeout(() => {
+          const target = document.querySelector(href);
+          if (target) target.scrollIntoView({ behavior: 'smooth' });
+        }, 250); // wait for menu close animation
+      } else {
+        toggleMenu(false);
+      }
+    });
+  });
+
+  // Close on backdrop tap (tapping outside the links)
+  mobileMenu.addEventListener('click', e => {
+    if (e.target === mobileMenu) toggleMenu(false);
+  });
 </script>
 </body>
 </html>
