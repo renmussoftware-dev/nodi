@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Line, Text as SvgText, G, Rect } from 'react-native-svg';
 import { COLORS, RADIUS, SPACE } from '../constants/theme';
 import { NOTES, CHORDS, OPEN_STRINGS } from '../constants/music';
@@ -11,23 +11,26 @@ interface Props {
   compact?: boolean; // smaller size for use in progression mini boxes
 }
 
-// Full-size box dimensions
-const PAD_L = 32;
-const PAD_T = 36;
-const FRET_H = 28;
-const STR_GAP = 24;
-const DOT_R = 10;
-const FRETS_SHOWN = 5;
-const STRINGS = 6;
-
-// Compact dimensions (progressions mini boxes)
+// Compact dimensions (progressions mini boxes — always fixed)
 const C_PAD_L = 18;
 const C_PAD_T = 22;
 const C_FRET_H = 18;
 const C_STR_GAP = 15;
 const C_DOT_R = 6;
+const FRETS_SHOWN = 5;
+const STRINGS = 6;
 
 export default function ChordBox({ root, chordKey, compact = false }: Props) {
+  const { width: screenW } = useWindowDimensions();
+  const isTablet = screenW >= 768;
+
+  // Scale full-size dimensions based on available width
+  const scale = compact ? 1 : isTablet ? Math.min(2.2, (screenW * 0.55) / 160) : 1;
+  const PAD_L = Math.round(32 * scale);
+  const PAD_T = Math.round(36 * scale);
+  const FRET_H = Math.round(28 * scale);
+  const STR_GAP = Math.round(24 * scale);
+  const DOT_R = Math.round(10 * scale);
   const [voicingIdx, setVoicingIdx] = useState(0);
   const voicings = getChordVoicings(root, chordKey);
 

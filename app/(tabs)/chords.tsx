@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  Animated, Pressable,
+  Animated, Pressable, useWindowDimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ChordBox from '../../src/components/ChordBox';
@@ -15,9 +15,11 @@ const CATEGORIES = ['All', 'Triads', 'Seventh', 'Extended', 'Sus'];
 const CAT_MAP: Record<string, string> = {
   'Triads': 'triad', 'Seventh': 'seventh', 'Extended': 'extended', 'Sus': 'sus',
 };
-const DRAWER_W = 200;
+const DRAWER_W = 220;
 
 export default function ChordsScreen() {
+  const { width: screenW } = useWindowDimensions();
+  const isTablet = screenW >= 768;
   const { root, setRoot } = useStore();
   const { playChord } = useAudioEngine();
   const [category, setCategory] = useState('All');
@@ -48,16 +50,13 @@ export default function ChordsScreen() {
       cat === 'All' || ch.category === CAT_MAP[cat]
     );
     setCategory(cat);
-    if (filtered.length > 0) {
-      setSelectedChord(filtered[0][0]);
-    }
+    if (filtered.length > 0) setSelectedChord(filtered[0][0]);
     openDrawer();
   }
 
   function selectChord(key: string) {
     setSelectedChord(key);
     closeDrawer();
-    // Play the first voicing of the selected chord
     const voicings = getChordVoicings(root, key);
     if (voicings.length > 0) playChord(voicings[0].frets);
   }
@@ -68,6 +67,8 @@ export default function ChordsScreen() {
 
   const drawerX = drawerAnim.interpolate({ inputRange: [0, 1], outputRange: [-DRAWER_W, 0] });
   const toggleX = drawerAnim.interpolate({ inputRange: [0, 1], outputRange: [0, DRAWER_W] });
+
+  const chord = CHORDS[selectedChord];
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -96,23 +97,59 @@ export default function ChordsScreen() {
         </ScrollView>
       </View>
 
-      {/* Main content — full width */}
+      {/* Main content */}
       <View style={styles.body}>
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.detailContent}>
-          <Text style={styles.diagramTitle}>{NOTES[root]} {selectedChord}</Text>
-          <Text style={styles.diagramDesc}>{CHORDS[selectedChord]?.description}</Text>
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.detailContent}
+        >
+          {/* Chord name + description */}
+          <Text style={[styles.diagramTitle, isTablet && styles.diagramTitleTablet]}>
+            {NOTES[root]} {selectedChord}
+          </Text>
+          <Text style={[styles.diagramDesc, isTablet && styles.diagramDescTablet]}>
+            {chord?.description}
+          </Text>
+
+          {/* Chord diagram — centered, large */}
           <View style={styles.boxWrap}>
             <ChordBox root={root} chordKey={selectedChord} />
           </View>
+
+          {/* Interval pills — centered */}
           <View style={styles.intervalsWrap}>
-            {CHORDS[selectedChord]?.intervalNames.map((name, i) => (
-              <View key={i} style={[styles.intervalBadge, i === 0 && styles.rootBadge]}>
-                <Text style={[styles.intervalText, i === 0 && styles.rootText]}>{name}</Text>
+            {chord?.intervalNames.map((name, i) => (
+              <View key={i} style={[
+                styles.intervalBadge,
+                isTablet && styles.intervalBadgeTablet,
+                i === 0 && styles.rootBadge,
+              ]}>
+                <Text style={[
+                  styles.intervalText,
+                  isTablet && styles.intervalTextTablet,
+                  i === 0 && styles.rootText,
+                ]}>{name}</Text>
               </View>
             ))}
           </View>
           <Text style={styles.intervalLabel}>Interval structure</Text>
-          <View style={{ height: 80 }} />
+
+          {/* Chord description card */}
+          {chord && (
+            <View style={styles.infoCard}>
+              <Text style={styles.infoCardLabel}>ABOUT THIS CHORD</Text>
+              <Text style={styles.infoCardText}>{chord.description}</Text>
+              <View style={styles.infoCardIntervals}>
+                {chord.intervalNames.map((name, i) => (
+                  <View key={i} style={styles.infoInterval}>
+                    <Text style={styles.infoIntervalName}>{name}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          )}
+
+          <View style={{ height: 100 }} />
         </ScrollView>
 
         {/* Scrim */}
@@ -165,38 +202,42 @@ const styles = StyleSheet.create({
   catText:      { fontSize: 12, fontWeight: '500', color: COLORS.textMuted },
   catTextActive: { color: '#fff' },
 
-  body:         { flex: 1, overflow: 'hidden' },
-  detailContent:{ alignItems: 'center', paddingTop: SPACE.xl, paddingHorizontal: SPACE.lg },
-  diagramTitle: { fontSize: 26, fontWeight: '700', color: COLORS.text, marginBottom: 6, textAlign: 'center' },
-  diagramDesc:  { fontSize: 14, color: COLORS.textMuted, marginBottom: SPACE.xl, textAlign: 'center' },
-  boxWrap:      { backgroundColor: COLORS.surface, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.border, padding: SPACE.lg, marginBottom: SPACE.xl },
-  intervalsWrap:{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, justifyContent: 'center', marginBottom: 6 },
-  intervalBadge:{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: RADIUS.full, backgroundColor: COLORS.surfaceHigh, borderWidth: 1, borderColor: COLORS.border },
-  rootBadge:    { backgroundColor: '#E8D44D', borderColor: '#C4A800' },
-  intervalText: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
-  rootText:     { color: '#5C4400' },
-  intervalLabel:{ fontSize: 11, color: COLORS.textFaint, letterSpacing: 0.5 },
+  body:              { flex: 1, overflow: 'hidden' },
+  detailContent:     { alignItems: 'center', paddingTop: SPACE.xxl, paddingHorizontal: SPACE.xl },
+
+  diagramTitle:      { fontSize: 32, fontWeight: '700', color: COLORS.text, marginBottom: 6, textAlign: 'center' },
+  diagramTitleTablet:{ fontSize: 48 },
+  diagramDesc:       { fontSize: 15, color: COLORS.textMuted, marginBottom: SPACE.xl, textAlign: 'center' },
+  diagramDescTablet: { fontSize: 20 },
+
+  boxWrap:      { alignItems: 'center', justifyContent: 'center', marginBottom: SPACE.xl },
+
+  intervalsWrap:    { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginBottom: 8 },
+  intervalBadge:    { paddingHorizontal: 16, paddingVertical: 8, borderRadius: RADIUS.full, backgroundColor: COLORS.surfaceHigh, borderWidth: 1, borderColor: COLORS.border },
+  intervalBadgeTablet: { paddingHorizontal: 22, paddingVertical: 12 },
+  rootBadge:        { backgroundColor: '#E8D44D', borderColor: '#C4A800' },
+  intervalText:     { fontSize: 16, fontWeight: '700', color: COLORS.textMuted },
+  intervalTextTablet: { fontSize: 22 },
+  rootText:         { color: '#5C4400' },
+  intervalLabel:    { fontSize: 12, color: COLORS.textFaint, letterSpacing: 0.5, marginBottom: SPACE.xl },
+
+  infoCard:         { width: '100%', backgroundColor: COLORS.surface, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.border, padding: SPACE.lg, marginTop: SPACE.sm },
+  infoCardLabel:    { fontSize: 10, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: SPACE.sm },
+  infoCardText:     { fontSize: 15, color: COLORS.text, lineHeight: 22, marginBottom: SPACE.md },
+  infoCardIntervals:{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  infoInterval:     { paddingHorizontal: 10, paddingVertical: 4, backgroundColor: COLORS.surfaceHigh, borderRadius: RADIUS.sm, borderWidth: 1, borderColor: COLORS.border },
+  infoIntervalName: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
 
   scrim:        { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.45)', zIndex: 10 },
-
-  drawer:       {
-    position: 'absolute', left: 0, top: 0, bottom: 0, width: DRAWER_W,
-    backgroundColor: COLORS.surface, borderRightWidth: 1, borderRightColor: COLORS.border,
-    zIndex: 20,
-  },
-  chordItem:    { paddingVertical: 11, paddingHorizontal: SPACE.md, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  drawer:       { position: 'absolute', left: 0, top: 0, bottom: 0, width: DRAWER_W, backgroundColor: COLORS.surface, borderRightWidth: 1, borderRightColor: COLORS.border, zIndex: 20 },
+  chordItem:    { paddingVertical: 12, paddingHorizontal: SPACE.md, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   chordItemActive: { backgroundColor: COLORS.surfaceHigh },
-  chordName:    { fontSize: 13, fontWeight: '600', color: COLORS.text, marginBottom: 2 },
+  chordName:    { fontSize: 14, fontWeight: '600', color: COLORS.text, marginBottom: 2 },
   chordNameActive: { color: COLORS.accent },
-  chordIntervals: { fontSize: 10, color: COLORS.textMuted },
+  chordIntervals: { fontSize: 11, color: COLORS.textMuted },
 
   toggleWrap:   { position: 'absolute', left: 0, top: '40%', zIndex: 30 },
-  togglePill:   {
-    backgroundColor: COLORS.surfaceHigh, borderTopRightRadius: 20, borderBottomRightRadius: 20,
-    borderWidth: 1, borderLeftWidth: 0, borderColor: COLORS.borderLight,
-    paddingVertical: 14, paddingLeft: 6, paddingRight: 10,
-    alignItems: 'center', gap: 4,
-  },
+  togglePill:   { backgroundColor: COLORS.surfaceHigh, borderTopRightRadius: 20, borderBottomRightRadius: 20, borderWidth: 1, borderLeftWidth: 0, borderColor: COLORS.borderLight, paddingVertical: 14, paddingLeft: 6, paddingRight: 10, alignItems: 'center', gap: 4 },
   toggleArrow:  { fontSize: 16, color: COLORS.text, fontWeight: '600', lineHeight: 18 },
   toggleLabel:  { fontSize: 9, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 1.2 },
 });
