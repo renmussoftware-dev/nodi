@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Pressable } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Animated, Pressable, PanResponder, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { COLORS, SPACE, RADIUS } from '../../src/constants/theme';
 import { NOTES, NOTE_DISPLAY, SCALES, COLORS as MUSIC_COLORS } from '../../src/constants/music';
@@ -16,6 +16,7 @@ const CAT_MAP: Record<string, string> = {
 const DRAWER_W = 190;
 
 export default function ScalesScreen() {
+  const { height: screenH } = useWindowDimensions();
   const { root, setRoot } = useStore();
   const { isPro, requirePro } = useProGate();
   const [category, setCategory] = useState('All');
@@ -23,6 +24,23 @@ export default function ScalesScreen() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const drawerAnim = useRef(new Animated.Value(0)).current;
   const scrimAnim = useRef(new Animated.Value(0)).current;
+
+  // Draggable toggle pill
+  const pillYAnim = useRef(new Animated.Value(0.4)).current;
+  const pillYValue = useRef(0.4);
+  const scalePanResponder = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => false,
+    onMoveShouldSetPanResponder: (_, gs) => Math.abs(gs.dy) > 4,
+    onPanResponderMove: (_, gs) => {
+      const newFrac = Math.max(0.08, Math.min(0.88, pillYValue.current + gs.dy / screenH));
+      pillYAnim.setValue(newFrac);
+    },
+    onPanResponderRelease: (_, gs) => {
+      const newFrac = Math.max(0.08, Math.min(0.88, pillYValue.current + gs.dy / screenH));
+      pillYValue.current = newFrac;
+      pillYAnim.setValue(newFrac);
+    },
+  })).current;
 
   function openDrawer() {
     setDrawerOpen(true);
@@ -171,7 +189,14 @@ export default function ScalesScreen() {
           </ScrollView>
         </Animated.View>
 
-        <Animated.View style={[styles.toggleWrap, { transform: [{ translateX: toggleX }] }]}>
+        <Animated.View style={[
+          styles.toggleWrap,
+          { top: pillYAnim.interpolate({ inputRange: [0,1], outputRange: ['0%','100%'] }),
+            transform: [{ translateX: toggleX }] },
+        ]}>
+          <View {...scalePanResponder.panHandlers} style={styles.dragHandle}>
+            <Text style={styles.dragDots}>⋮</Text>
+          </View>
           <TouchableOpacity onPress={() => drawerOpen ? closeDrawer() : openDrawer()} style={styles.togglePill} activeOpacity={0.8}>
             <Text style={styles.toggleArrow}>{drawerOpen ? '‹' : '›'}</Text>
             <Text style={styles.toggleLabel}>LIST</Text>
@@ -228,8 +253,15 @@ const styles = StyleSheet.create({
   scaleNameActive: { color: COLORS.accent },
   scaleCategory:{ fontSize: 10, color: COLORS.textFaint, textTransform: 'capitalize' },
 
-  toggleWrap:   { position: 'absolute', left: 0, top: '40%', zIndex: 30 },
-  togglePill:   { backgroundColor: COLORS.surfaceHigh, borderTopRightRadius: 20, borderBottomRightRadius: 20, borderWidth: 1, borderLeftWidth: 0, borderColor: COLORS.borderLight, paddingVertical: 14, paddingLeft: 6, paddingRight: 10, alignItems: 'center', gap: 4 },
-  toggleArrow:  { fontSize: 16, color: COLORS.text, fontWeight: '600', lineHeight: 18 },
-  toggleLabel:  { fontSize: 9, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 1.2 },
+  toggleWrap:    { position: 'absolute', left: 0, zIndex: 30, alignItems: 'flex-start' },
+  dragHandle:    { width: 32, backgroundColor: COLORS.surfaceHigh, borderTopRightRadius: 10,
+                   paddingVertical: 6, paddingHorizontal: 8,
+                   borderWidth: 1, borderLeftWidth: 0, borderBottomWidth: 0, borderColor: COLORS.borderLight,
+                   alignItems: 'center' },
+  dragDots:      { fontSize: 14, color: COLORS.textFaint, lineHeight: 16 },
+  togglePill:    { backgroundColor: COLORS.surfaceHigh, borderBottomRightRadius: 20,
+                   borderWidth: 1, borderLeftWidth: 0, borderTopWidth: 0, borderColor: COLORS.borderLight,
+                   paddingVertical: 12, paddingLeft: 6, paddingRight: 10, alignItems: 'center', gap: 4 },
+  toggleArrow:   { fontSize: 16, color: COLORS.text, fontWeight: '600', lineHeight: 18 },
+  toggleLabel:   { fontSize: 9, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 1.2 },
 });
