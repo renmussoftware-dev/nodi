@@ -157,29 +157,43 @@ export function useAudioEngine() {
     };
   }, []);
 
-
-
-  const playChordIdRef = useRef(0);
-
-  const playMidi = useCallback((midi: number) => {
+  const playMidi = useCallback(async (midi: number) => {
     const name = midiToFilename(midi);
-    const sound = soundsRef.current[name];
+    let sound = soundsRef.current[name];
+
+    // If sound wasn't loaded (iPad race condition), try loading it now
+    if (!sound && AUDIO_FILES[name]) {
+      try {
+        await Audio.setAudioModeAsync({ playsInSilentModeIOS: true, allowsRecordingIOS: false, staysActiveInBackground: false });
+        const { sound: newSound } = await Audio.Sound.createAsync(
+          AUDIO_FILES[name], { shouldPlay: false, volume: 1.0 }
+        );
+        soundsRef.current[name] = newSound;
+        sound = newSound;
+      } catch {
+        return;
+      }
+    }
+
     if (!sound) return;
-    // playFromPositionAsync handles rewind+play atomically without needing stopAsync first
-    sound.playFromPositionAsync(0).catch(() => {});
+    try {
+      await sound.setPositionAsync(0);
+      await sound.playAsync();
+    } catch {
+      // ignore playback errors
+    }
   }, []);
 
-  const playChord = useCallback((frets: (number | null)[]) => {
+  const playChord = useCallback(async (frets: (number | null)[]) => {
     const notes = fretstToMidiNotes(frets);
-    // Cancel any in-flight strum from a previous chord change
-    const chordId = ++playChordIdRef.current;
-    // 18ms between strings — natural strum feel
-    notes.forEach((midi, i) => {
-      setTimeout(() => {
-        if (playChordIdRef.current !== chordId) return;
-        playMidi(midi);
-      }, i * 18);
-    });
+    // Strum effect: slight delay between strings (low to high)
+    await Promise.all(
+      notes.map((midi, i) =>
+        new Promise<void>(resolve => {
+          setTimeout(() => { playMidi(midi).then(resolve); }, i * 18);
+        })
+      )
+    );
   }, [playMidi]);
 
   const stopProgression = useCallback(() => {

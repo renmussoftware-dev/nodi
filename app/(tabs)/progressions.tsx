@@ -35,7 +35,7 @@ const INLAYS = [3, 5, 7, 9, 12];
 function ProgFretboard({ chordRoot, chordKey, animVal }: {
   chordRoot: number; chordKey: string; animVal: Animated.Value;
 }) {
-  const { width: screenW } = useWindowDimensions();
+  const { width: screenW, height: screenH } = useWindowDimensions();
   const isTablet = screenW >= 768;
   const FBL = 28, FBT = 20, FBNW = 5, FBFRETS = 12, FBSTR = 6;
   const FBFW = isTablet ? Math.floor((screenW - 60) / FBFRETS) : 46;
