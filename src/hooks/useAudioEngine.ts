@@ -165,9 +165,8 @@ export function useAudioEngine() {
     const name = midiToFilename(midi);
     const sound = soundsRef.current[name];
     if (!sound) return;
-    // Stop + play from position 0 — no awaiting, fire-and-forget
-    // This avoids both the replayAsync latency and the old setPositionAsync race
-    sound.stopAsync().then(() => sound.playFromPositionAsync(0)).catch(() => {});
+    // playFromPositionAsync handles rewind+play atomically without needing stopAsync first
+    sound.playFromPositionAsync(0).catch(() => {});
   }, []);
 
   const playChord = useCallback((frets: (number | null)[]) => {
