@@ -161,28 +161,13 @@ export function useAudioEngine() {
 
   const playChordIdRef = useRef(0);
 
-  const playMidi = useCallback(async (midi: number) => {
+  const playMidi = useCallback((midi: number) => {
     const name = midiToFilename(midi);
-    let sound = soundsRef.current[name];
-
-    if (!sound && AUDIO_FILES[name]) {
-      try {
-        const { sound: newSound } = await Audio.Sound.createAsync(
-          AUDIO_FILES[name], { shouldPlay: false, volume: 1.0 }
-        );
-        soundsRef.current[name] = newSound;
-        sound = newSound;
-      } catch { return; }
-    }
+    const sound = soundsRef.current[name];
     if (!sound) return;
-
-    try {
-      // replayAsync is atomic — rewind + play in one call, avoids the
-      // setPositionAsync/playAsync race that drops notes on iOS
-      await sound.replayAsync({ positionMillis: 0, shouldPlay: true });
-    } catch {
-      try { await sound.stopAsync(); await sound.playFromPositionAsync(0); } catch { /* ignore */ }
-    }
+    // Stop + play from position 0 — no awaiting, fire-and-forget
+    // This avoids both the replayAsync latency and the old setPositionAsync race
+    sound.stopAsync().then(() => sound.playFromPositionAsync(0)).catch(() => {});
   }, []);
 
   const playChord = useCallback((frets: (number | null)[]) => {
