@@ -78,9 +78,7 @@ const styles = StyleSheet.create({
   rowBadge: { marginRight: 12 },
 
   banner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     backgroundColor: 'rgba(83,74,183,0.12)',
     borderWidth: 1,
     borderColor: 'rgba(83,74,183,0.3)',
@@ -90,6 +88,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginVertical: 8,
   },
-  bannerText: { fontSize: 13, color: COLORS.text, fontWeight: '500' },
+  bannerText: { fontSize: 13, color: COLORS.text, fontWeight: '500', marginBottom: 4 },
   bannerCta:  { fontSize: 13, color: '#837AB7', fontWeight: '700' },
 });
