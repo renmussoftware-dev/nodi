@@ -188,7 +188,7 @@ export default function Paywall({ onClose, onSuccess }: Props) {
         </TouchableOpacity>
 
         <Text style={styles.legal}>
-          Payment will be charged to your Apple ID account. Subscriptions automatically renew unless cancelled at least 24 hours before the end of the current period. You can manage and cancel subscriptions in your App Store account settings.
+          Fretionary Pro — Monthly or Annual auto-renewable subscription. Payment will be charged to your Apple ID at confirmation of purchase. Subscriptions automatically renew unless auto-renew is turned off at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. Manage or cancel subscriptions in your App Store account settings after purchase.
         </Text>
 
         <View style={styles.legalLinks}>
@@ -196,8 +196,8 @@ export default function Paywall({ onClose, onSuccess }: Props) {
             <Text style={styles.legalLink}>Privacy Policy</Text>
           </TouchableOpacity>
           <Text style={styles.legalDot}> · </Text>
-          <TouchableOpacity onPress={() => Linking.openURL('https://fretionary.com/terms')}>
-            <Text style={styles.legalLink}>Terms of Service</Text>
+          <TouchableOpacity onPress={() => Linking.openURL('https://www.apple.com/legal/internet-services/itunes/dev/stdeula/')}>
+            <Text style={styles.legalLink}>Terms of Use</Text>
           </TouchableOpacity>
         </View>
 
