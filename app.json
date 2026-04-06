@@ -14,7 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.renmussoftware.nodi",
-      "buildNumber": "6",
+      "buildNumber": "18",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Fretionary uses the microphone for tuning features.",
         "UIBackgroundModes": [],
@@ -50,7 +50,8 @@
             "deploymentTarget": "15.1"
           }
         }
-      ]
+      ],
+      "react-native-purchases"
     ],
     "scheme": "fretionary",
     "experiments": {
