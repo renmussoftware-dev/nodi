@@ -40,19 +40,24 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router",
-      "expo-av",
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "buildReactNativeFromSource": true,
-            "deploymentTarget": "15.1"
-          }
+    "expo-router",
+    "expo-av",
+    [
+      "expo-build-properties",
+      {
+        "ios": {
+          "buildReactNativeFromSource": true,
+          "deploymentTarget": "15.1"
         }
-      ],
-      "react-native-purchases"
+      }
     ],
+    [
+      "react-native-purchases/app-plugin",
+      {
+        "useStoreKit2": true
+      }
+    ]
+  ],
     "scheme": "fretionary",
     "experiments": {
       "typedRoutes": true
