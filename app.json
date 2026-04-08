@@ -50,12 +50,6 @@
             "deploymentTarget": "15.1"
           }
         }
-      ],
-      [
-        "react-native-purchases",
-        {
-          "useStoreKit2": true
-        }
       ]
     ],
     "scheme": "fretionary",
