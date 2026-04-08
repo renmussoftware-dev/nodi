@@ -2,7 +2,7 @@
   "expo": {
     "name": "Fretionary",
     "slug": "fretionary",
-    "version": "1.0.0",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -14,7 +14,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.renmussoftware.nodi",
-      "buildNumber": "18",
+      "buildNumber": "19",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Fretionary uses the microphone for tuning features.",
         "UIBackgroundModes": [],
@@ -40,24 +40,24 @@
       "bundler": "metro"
     },
     "plugins": [
-    "expo-router",
-    "expo-av",
-    [
-      "expo-build-properties",
-      {
-        "ios": {
-          "buildReactNativeFromSource": true,
-          "deploymentTarget": "15.1"
+      "expo-router",
+      "expo-av",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "buildReactNativeFromSource": true,
+            "deploymentTarget": "15.1"
+          }
         }
-      }
+      ],
+      [
+        "react-native-purchases/app-plugin",
+        {
+          "useStoreKit2": true
+        }
+      ]
     ],
-    [
-      "react-native-purchases/app-plugin",
-      {
-        "useStoreKit2": true
-      }
-    ]
-  ],
     "scheme": "fretionary",
     "experiments": {
       "typedRoutes": true
