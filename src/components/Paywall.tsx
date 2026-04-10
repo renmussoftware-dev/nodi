@@ -177,7 +177,9 @@ export default function Paywall({ onClose, onSuccess }: Props) {
             : <Text style={styles.ctaText}>
                 {sorted[selectedIdx]?.packageType === PACKAGE_TYPE.LIFETIME
                   ? 'Buy Lifetime Access'
-                  : 'Start Free Trial'}
+                  : sorted[selectedIdx]?.packageType === PACKAGE_TYPE.MONTHLY
+                  ? 'Subscribe Monthly'
+                  : 'Subscribe Annually'}
               </Text>
           }
         </TouchableOpacity>
