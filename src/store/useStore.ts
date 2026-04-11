@@ -9,9 +9,10 @@ interface AppState {
   chordKey: string;
   mode: AppMode;
   labelMode: LabelMode;
-  activePosition: number | null;   // for scales mode
-  activeCaged: string | null;      // for caged mode
+  activePosition: number | null;
+  activeCaged: string | null;
   showAllFrets: boolean;
+  isPro: boolean;
 
   setRoot: (r: number) => void;
   setScaleKey: (k: string) => void;
@@ -21,6 +22,7 @@ interface AppState {
   setActivePosition: (p: number | null) => void;
   setActiveCaged: (c: string | null) => void;
   setShowAllFrets: (v: boolean) => void;
+  setIsPro: (v: boolean) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -32,6 +34,7 @@ export const useStore = create<AppState>((set) => ({
   activePosition: null,
   activeCaged: null,
   showAllFrets: false,
+  isPro: false,
 
   setRoot: (root) => set({ root }),
   setScaleKey: (scaleKey) => set({ scaleKey, activePosition: null }),
@@ -41,4 +44,5 @@ export const useStore = create<AppState>((set) => ({
   setActivePosition: (activePosition) => set({ activePosition }),
   setActiveCaged: (activeCaged) => set({ activeCaged }),
   setShowAllFrets: (showAllFrets) => set({ showAllFrets }),
+  setIsPro: (isPro) => set({ isPro }),
 }));

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import Purchases, { LOG_LEVEL, PurchasesPackage, CustomerInfo } from 'react-native-purchases';
 import { Platform } from 'react-native';
+import { useStore } from '../store/useStore';
 
-const REVENUECAT_API_KEY_IOS = 'appl_RISKMtoBkVaaMekfALDreNUNBRd'; // appl_...
+const REVENUECAT_API_KEY_IOS = 'appl_RISKMtoBkVaaMekfALDreNUNBRd';
 const ENTITLEMENT_ID = 'Renmus Software LLC Pro';
 
 export interface PurchaseState {
@@ -13,12 +14,18 @@ export interface PurchaseState {
 }
 
 export function useRevenueCat() {
+  const setIsPro = useStore(s => s.setIsPro);
   const [state, setState] = useState<PurchaseState>({
     isLoading: true,
     isPro: false,
     packages: [],
     customerInfo: null,
   });
+
+  function updatePro(isPro: boolean, customerInfo: CustomerInfo) {
+    setIsPro(isPro); // sync to global store immediately
+    setState(s => ({ ...s, isPro, customerInfo }));
+  }
 
   useEffect(() => {
     async function init() {
@@ -31,14 +38,12 @@ export function useRevenueCat() {
           Purchases.configure({ apiKey: REVENUECAT_API_KEY_IOS });
         }
 
-        // Get current customer info (checks if they already have pro)
         const customerInfo = await Purchases.getCustomerInfo();
         const isPro = customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
-
-        // Fetch available packages
         const offerings = await Purchases.getOfferings();
         const packages = offerings.current?.availablePackages ?? [];
 
+        setIsPro(isPro);
         setState({ isLoading: false, isPro, packages, customerInfo });
       } catch (e) {
         console.warn('RevenueCat init error:', e);
@@ -53,7 +58,7 @@ export function useRevenueCat() {
     try {
       const { customerInfo } = await Purchases.purchasePackage(pkg);
       const isPro = customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
-      setState(s => ({ ...s, isPro, customerInfo }));
+      updatePro(isPro, customerInfo);
       return isPro;
     } catch (e: any) {
       if (!e.userCancelled) {
@@ -67,7 +72,7 @@ export function useRevenueCat() {
     try {
       const customerInfo = await Purchases.restorePurchases();
       const isPro = customerInfo.entitlements.active[ENTITLEMENT_ID] !== undefined;
-      setState(s => ({ ...s, isPro, customerInfo }));
+      updatePro(isPro, customerInfo);
       return isPro;
     } catch (e) {
       console.warn('Restore error:', e);

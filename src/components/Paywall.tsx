@@ -4,6 +4,7 @@ import {
   ActivityIndicator, Alert, Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { router } from 'expo-router';
 import { PACKAGE_TYPE } from 'react-native-purchases';
 import type { PurchasesPackage } from 'react-native-purchases';
 import { COLORS, SPACE, RADIUS } from '../constants/theme';
@@ -30,8 +31,14 @@ export default function Paywall({ onClose, onSuccess }: Props) {
     const success = await purchasePackage(pkg);
     setPurchasing(false);
     if (success) {
-      Alert.alert('Welcome to Fretionary Pro! 🎸', 'You now have full access to all features.');
-      onSuccess?.();
+      Alert.alert(
+        'Welcome to Fretionary Pro! 🎸',
+        'You now have full access to all features.',
+        [{ text: 'Let\'s go!', onPress: () => {
+          onSuccess?.();
+          router.back(); // dismiss paywall — global isPro already updated
+        }}]
+      );
     }
   }
 
@@ -40,8 +47,14 @@ export default function Paywall({ onClose, onSuccess }: Props) {
     const success = await restorePurchases();
     setPurchasing(false);
     if (success) {
-      Alert.alert('Purchases Restored', 'Your Pro access has been restored.');
-      onSuccess?.();
+      Alert.alert(
+        'Purchases Restored',
+        'Your Pro access has been restored.',
+        [{ text: 'Let\'s go!', onPress: () => {
+          onSuccess?.();
+          router.back();
+        }}]
+      );
     } else {
       Alert.alert('No Purchases Found', 'No previous purchases were found for this Apple ID.');
     }

@@ -1,16 +1,10 @@
 import { router } from 'expo-router';
+import { useStore } from '../store/useStore';
 import { useRevenueCat } from './useRevenueCat';
 
-/**
- * useProGate — checks subscription status and provides a gated action helper.
- *
- * Usage:
- *   const { isPro, requirePro } = useProGate();
- *   // In a press handler:
- *   requirePro(() => doProAction());
- */
 export function useProGate() {
-  const { isPro, isLoading } = useRevenueCat();
+  const isPro = useStore(s => s.isPro);       // global — updates instantly on purchase
+  const { isLoading } = useRevenueCat();
 
   function requirePro(action: () => void) {
     if (isPro) {
