@@ -8,6 +8,7 @@ import { NOTES, NOTE_DISPLAY, CAGED_ORDER, CAGED_SHAPES, CAGED_COLORS } from '..
 import { useStore } from '../../src/store/useStore';
 import { getCagedCaretFret } from '../../src/utils/theory';
 import { router } from 'expo-router';
+import StandardTuningNotice from '../../src/components/StandardTuningNotice';
 
 const CAGED_DESCRIPTION = `The CAGED system maps the entire guitar neck using 5 repeating chord shapes based on the open C, A, G, E, and D chord forms.
 
@@ -38,6 +39,7 @@ export default function CagedScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView showsVerticalScrollIndicator={false}>
+        <StandardTuningNotice context="CAGED" />
         <View style={styles.header}>
           <Text style={styles.title}>CAGED System</Text>
           <Text style={styles.subtitle}>{CAGED_DESCRIPTION}</Text>

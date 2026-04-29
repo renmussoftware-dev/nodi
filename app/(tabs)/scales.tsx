@@ -8,6 +8,8 @@ import { getScaleNotes } from '../../src/utils/theory';
 import { useProGate } from '../../src/hooks/useProGate';
 import { ProBanner } from '../../src/components/ProLock';
 import { isScaleFree } from '../../src/constants/subscription';
+import HeartButton from '../../src/components/HeartButton';
+import SavedSheet from '../../src/components/SavedSheet';
 
 const CATEGORIES = ['All', 'Major', 'Minor', 'Pentatonic', 'Modes', 'Other'];
 const CAT_MAP: Record<string, string> = {
@@ -18,10 +20,12 @@ const DRAWER_W = 190;
 export default function ScalesScreen() {
   const { height: screenH } = useWindowDimensions();
   const { root, setRoot } = useStore();
+  const addRecent = useStore(s => s.addRecent);
   const { isPro, requirePro } = useProGate();
   const [category, setCategory] = useState('All');
   const [selectedScale, setSelectedScale] = useState('Major');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [savedOpen, setSavedOpen] = useState(false);
   const drawerAnim = useRef(new Animated.Value(0)).current;
   const scrimAnim = useRef(new Animated.Value(0)).current;
 
@@ -66,12 +70,13 @@ export default function ScalesScreen() {
   }
 
   function selectScale(key: string) {
-    if (!isScaleFree(key)) {
-      requirePro(() => { setSelectedScale(key); closeDrawer(); });
-      return;
-    }
-    setSelectedScale(key);
-    closeDrawer();
+    const apply = () => {
+      setSelectedScale(key);
+      addRecent({ kind: 'scale', root, scaleKey: key });
+      closeDrawer();
+    };
+    if (!isScaleFree(key)) { requirePro(apply); return; }
+    apply();
   }
 
   function changeCategory(cat: string) {
@@ -96,10 +101,18 @@ export default function ScalesScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.title}>Scale Reference</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Scale Reference</Text>
+          <TouchableOpacity onPress={() => setSavedOpen(true)} activeOpacity={0.7} style={styles.savedBtn}>
+            <Text style={styles.savedBtnText}>♥ Saved</Text>
+          </TouchableOpacity>
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.noteRow}>
           {NOTES.map((n, i) => (
-            <TouchableOpacity key={n} onPress={() => setRoot(i)}
+            <TouchableOpacity key={n} onPress={() => {
+                setRoot(i);
+                addRecent({ kind: 'scale', root: i, scaleKey: selectedScale });
+              }}
               style={[styles.notePill, root === i && styles.notePillActive]} activeOpacity={0.7}>
               <Text style={[styles.noteText, root === i && styles.noteTextActive]}>{NOTE_DISPLAY[n] || n}</Text>
             </TouchableOpacity>
@@ -117,7 +130,10 @@ export default function ScalesScreen() {
 
       <View style={styles.body}>
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.detailContent}>
-          <Text style={styles.detailTitle}>{NOTES[root]} {selectedScale}</Text>
+          <View style={styles.titleHeart}>
+            <Text style={styles.detailTitle}>{NOTES[root]} {selectedScale}</Text>
+            <HeartButton item={{ kind: 'scale', root, scaleKey: selectedScale }} size="md" />
+          </View>
           <Text style={styles.detailDesc}>{sc?.description}</Text>
 
           <Text style={styles.subLabel}>Notes</Text>
@@ -208,6 +224,8 @@ export default function ScalesScreen() {
           </View>
         </Animated.View>
       </View>
+
+      <SavedSheet visible={savedOpen} onClose={() => setSavedOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -215,7 +233,17 @@ export default function ScalesScreen() {
 const styles = StyleSheet.create({
   safe:         { flex: 1, backgroundColor: COLORS.bg },
   header:       { backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border, paddingTop: SPACE.md, paddingBottom: SPACE.md, gap: SPACE.sm },
-  title:        { fontSize: 18, fontWeight: '700', color: COLORS.text, paddingHorizontal: SPACE.lg, marginBottom: 2 },
+  title:        { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 2 },
+  titleRow:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACE.lg },
+  savedBtn:     {
+                  marginLeft: 'auto',
+                  paddingHorizontal: 10, paddingVertical: 5,
+                  borderRadius: RADIUS.full,
+                  borderWidth: 1, borderColor: COLORS.border,
+                  backgroundColor: COLORS.bg,
+                },
+  savedBtnText: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
+  titleHeart:   { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 6 },
   noteRow:      { flexDirection: 'row', paddingHorizontal: SPACE.lg, gap: 6 },
   notePill:     { paddingHorizontal: 10, paddingVertical: 5, borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bg },
   notePillActive: { backgroundColor: '#E8D44D', borderColor: '#C4A800' },

@@ -4,7 +4,7 @@ import Svg, {
   Rect, Circle, Line, Text as SvgText, G, Defs, Pattern,
 } from 'react-native-svg';
 import {
-  OPEN_STRINGS, STRING_NAMES, NOTES, SCALES, CHORDS,
+  NOTES, SCALES, CHORDS,
   CAGED_COLORS, CAGED_ORDER, POSITION_COLORS, COLORS as MUSIC_COLORS,
 } from '../constants/music';
 import { COLORS, SCREEN_W } from '../constants/theme';
@@ -13,6 +13,7 @@ import {
   getCagedFretRange, noteLabel,
 } from '../utils/theory';
 import { useStore } from '../store/useStore';
+import { getTuning, tuningNoteClasses, STANDARD_TUNING } from '../constants/tunings';
 
 const TOTAL_FRETS = 15;
 const STR_COUNT = 6;
@@ -38,7 +39,12 @@ export default function Fretboard() {
   }
   function strY(s: number) { return TOP_PAD + s * STR_H; }
 
-  const { root, scaleKey, chordKey, mode, labelMode, activePosition, activeCaged } = useStore();
+  const { root, scaleKey, chordKey, mode, labelMode, activePosition, activeCaged, tuningId } = useStore();
+
+  // CAGED is defined by standard-tuning open shapes — force standard for that mode.
+  const activeTuning = mode === 'caged' ? STANDARD_TUNING : getTuning(tuningId);
+  const noteClasses = useMemo(() => tuningNoteClasses(activeTuning), [activeTuning]);
+  const stringNames = activeTuning.stringNames;
 
   const activeNotes = useMemo(() => {
     if (mode === 'chords') return getChordNotes(root, chordKey);
@@ -46,8 +52,8 @@ export default function Fretboard() {
   }, [root, scaleKey, chordKey, mode]);
 
   const positions = useMemo(() =>
-    mode === 'scales' ? getScalePositions(root, scaleKey) : [],
-    [root, scaleKey, mode],
+    mode === 'scales' ? getScalePositions(root, scaleKey, noteClasses) : [],
+    [root, scaleKey, mode, noteClasses],
   );
 
   const cagedRange = useMemo(() =>
@@ -187,7 +193,7 @@ export default function Fretboard() {
               textAnchor="middle" fontSize={10} fill={COLORS.textMuted}
               fontWeight="500"
             >
-              {STRING_NAMES[s]}
+              {stringNames[s]}
             </SvgText>
           </G>
         ))}
@@ -222,7 +228,7 @@ export default function Fretboard() {
         {/* Note dots */}
         {Array.from({ length: STR_COUNT }, (_, s) =>
           Array.from({ length: TOTAL_FRETS + 1 }, (_, f) => {
-            const ni = (OPEN_STRINGS[s] + f) % 12;
+            const ni = (noteClasses[s] + f) % 12;
             const col = getNoteColor(ni, f);
             if (!col) return null;
             const x = fretX(f);

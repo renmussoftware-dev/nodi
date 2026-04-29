@@ -33,6 +33,12 @@ export const FREE_PROGRESSIONS = new Set([
   '12-Bar Blues',
 ]);
 
+// ── FREE TUNINGS (2 of 9) ────────────────────────────────────────────────────
+export const FREE_TUNINGS = new Set([
+  'standard',
+  'drop-d',
+]);
+
 // ── FEATURE GATES ────────────────────────────────────────────────────────────
 // These features are entirely locked behind Pro
 export const PRO_FEATURES = {
@@ -51,4 +57,18 @@ export function isChordFree(chordKey: string): boolean {
 
 export function isProgressionFree(progressionName: string): boolean {
   return FREE_PROGRESSIONS.has(progressionName);
+}
+
+export function isTuningFree(tuningId: string): boolean {
+  return FREE_TUNINGS.has(tuningId);
+}
+
+// ── PRACTICE ─────────────────────────────────────────────────────────────────
+// Free: only "Name the note" mode at beginner difficulty.
+// Pro:  other modes, all difficulties above beginner, stats history.
+export type PracticeMode = 'name' | 'find' | 'string';
+export type PracticeDifficulty = 'beginner' | 'intermediate' | 'advanced';
+
+export function isPracticeFree(mode: PracticeMode, difficulty: PracticeDifficulty): boolean {
+  return mode === 'name' && difficulty === 'beginner';
 }

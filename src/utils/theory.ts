@@ -21,14 +21,18 @@ export function getChordNotes(root: number, chordKey: string): number[] {
   return ch.intervals.map(iv => (root + iv) % 12);
 }
 
-export function getScalePositions(root: number, scaleKey: string) {
+export function getScalePositions(
+  root: number,
+  scaleKey: string,
+  noteClasses: readonly number[] = OPEN_STRINGS,
+) {
   const notes = getScaleNotes(root, scaleKey);
   const positions: { start: number; end: number }[] = [];
   for (let startFret = 0; startFret <= 15; startFret++) {
     let maxF = 0, minF = 99, count = 0;
     for (let s = 0; s < 6; s++) {
       for (let f = startFret; f <= startFret + 4; f++) {
-        const n = (OPEN_STRINGS[s] + f) % 12;
+        const n = (noteClasses[s] + f) % 12;
         if (notes.includes(n)) {
           if (f > maxF) maxF = f;
           if (f < minF) minF = f;

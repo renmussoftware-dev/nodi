@@ -74,6 +74,13 @@ export default function TabLayout() {
           tabBarLabel: 'Progressions',
         }}
       />
+      <Tabs.Screen
+        name="tools"
+        options={{
+          title: 'Tools',
+          tabBarIcon: ({ color }) => <ToolsIcon color={color} />,
+        }}
+      />
     </Tabs>
   );
 }
@@ -124,6 +131,20 @@ function ProgressionsIcon({ color }: { color: string }) {
       {[8, 12, 10, 14].map((h, i) => (
         <View key={i} style={{ width: 4, height: h * 0.9, backgroundColor: color, borderRadius: 2 }} />
       ))}
+    </View>
+  );
+}
+
+function ToolsIcon({ color }: { color: string }) {
+  // Tuning-fork silhouette: two prongs + a stem
+  return (
+    <View style={{ width: 16, height: 18, alignItems: 'center' }}>
+      <View style={{ flexDirection: 'row', gap: 4 }}>
+        <View style={{ width: 2, height: 9, backgroundColor: color, borderRadius: 1 }} />
+        <View style={{ width: 2, height: 9, backgroundColor: color, borderRadius: 1 }} />
+      </View>
+      <View style={{ width: 8, height: 2, backgroundColor: color, marginTop: -1, borderRadius: 1 }} />
+      <View style={{ width: 2, height: 7, backgroundColor: color, borderRadius: 1 }} />
     </View>
   );
 }

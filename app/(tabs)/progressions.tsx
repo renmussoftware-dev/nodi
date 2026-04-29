@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Animated, Modal, Pressable, useWindowDimensions, PanResponder,
@@ -15,6 +15,9 @@ import { useProGate } from '../../src/hooks/useProGate';
 import { ProBanner } from '../../src/components/ProLock';
 import { isProgressionFree } from '../../src/constants/subscription';
 import { getChordVoicings } from '../../src/utils/theory';
+import StandardTuningNotice from '../../src/components/StandardTuningNotice';
+import HeartButton from '../../src/components/HeartButton';
+import SavedSheet from '../../src/components/SavedSheet';
 
 type SubMode = 'common' | 'diatonic' | 'custom';
 
@@ -124,6 +127,9 @@ export default function ProgressionsScreen() {
   const { width: screenW, height: screenH } = useWindowDimensions();
   const isTablet = screenW >= 768;
   const { root, setRoot } = useStore();
+  const pendingNav = useStore(s => s.pendingNav);
+  const setPendingNav = useStore(s => s.setPendingNav);
+  const addRecent = useStore(s => s.addRecent);
   const { isPro, requirePro } = useProGate();
   const [subMode, setSubMode] = useState<SubMode>('common');
   const [genre, setGenre] = useState('All');
@@ -132,8 +138,30 @@ export default function ProgressionsScreen() {
   const [playing, setPlaying] = useState(false);
   const [bpm, setBpm] = useState(80);
   const [showModal, setShowModal] = useState(false);
-  const [customChords, setCustomChords] = useState<{ degree: number; chordType: string; numeral: string }[]>([]);
+  const [customChords, setCustomChords] = useState<{ root: number; chordType: string }[]>([]);
+  const [modalRoot, setModalRoot] = useState<number>(root); // 'pick any chord' picker root
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [savedOpen, setSavedOpen] = useState(false);
+
+  // Apply pending navigation from the Saved sheet
+  useEffect(() => {
+    if (pendingNav?.kind === 'progression') {
+      const match = PROGRESSIONS.find(p => p.name === pendingNav.progName);
+      if (match) {
+        setSelectedProg(match);
+        setSubMode('common');
+        setActiveIdx(0);
+        setPlaying(false);
+      }
+      setPendingNav(null);
+    }
+  }, [pendingNav, setPendingNav]);
+
+  // Whether the active progression is a named PROGRESSIONS entry (so it can be saved)
+  const isNamedProg = useMemo(
+    () => subMode === 'common' && PROGRESSIONS.some(p => p.name === selectedProg.name),
+    [subMode, selectedProg.name],
+  );
   const drawerAnim = useRef(new Animated.Value(0)).current;
   const scrimAnim = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -167,23 +195,30 @@ export default function ProgressionsScreen() {
   const activeProg: Progression = subMode === 'custom'
     ? {
         name: 'Custom',
-        numerals: customChords.map(c => c.numeral),
-        degrees: customChords.map(c => c.degree),
+        // For absolute custom chords, the "numeral" slot shows the note name.
+        numerals: customChords.map(c => NOTES[c.root]),
+        // degrees retained for length only — actual roots come from progRoots.
+        degrees: customChords.map(() => 0),
         chordTypes: customChords.map(c => c.chordType),
         genre: 'Custom',
         description: '',
       }
     : selectedProg;
 
+  // Absolute root per step. Custom chords are stored absolutely; common /
+  // diatonic progressions transpose with the page root.
+  const progRoots: number[] = subMode === 'custom'
+    ? customChords.map(c => c.root)
+    : selectedProg.degrees.map(d => (root + d) % 12);
+
   const count = activeProg.degrees.length;
-  const currentRoot = (root + (activeProg.degrees[activeIdx] ?? 0)) % 12;
+  const currentRoot = progRoots[activeIdx] ?? 0;
   const currentType = activeProg.chordTypes[activeIdx] ?? 'Major';
   const currentNumeral = activeProg.numerals[activeIdx] ?? '';
 
   // Build fret arrays for the current progression's chords
   function getProgressionFrets(): (number | null)[][] {
-    return activeProg.degrees.map((deg, i) => {
-      const chordRoot = (root + deg) % 12;
+    return progRoots.map((chordRoot, i) => {
       const chordType = activeProg.chordTypes[i] ?? 'Major';
       const voicings = getChordVoicings(chordRoot, chordType);
       return voicings.length > 0 ? voicings[0].frets : [];
@@ -236,7 +271,7 @@ export default function ProgressionsScreen() {
       Animated.timing(fadeAnim, { toValue: 1, duration: 160, useNativeDriver: true }),
     ]).start();
     // Play the chord audio on manual step
-    const chordRoot = (root + (activeProg.degrees[i] ?? 0)) % 12;
+    const chordRoot = progRoots[i] ?? 0;
     const chordType = activeProg.chordTypes[i] ?? 'Major';
     const voicings = getChordVoicings(chordRoot, chordType);
     if (voicings.length > 0) playChord(voicings[0].frets);
@@ -246,6 +281,9 @@ export default function ProgressionsScreen() {
     setSelectedProg(p);
     setActiveIdx(0);
     setPlaying(false);
+    if (PROGRESSIONS.some(x => x.name === p.name)) {
+      addRecent({ kind: 'progression', root, progName: p.name });
+    }
   }
 
   const filtered = PROGRESSIONS.filter(p => genre === 'All' || p.genre === genre);
@@ -258,6 +296,9 @@ export default function ProgressionsScreen() {
       <View style={styles.header}>
         <View style={styles.headerTop}>
           <Text style={styles.title}>Progressions</Text>
+          <TouchableOpacity onPress={() => setSavedOpen(true)} activeOpacity={0.7} style={styles.savedBtn}>
+            <Text style={styles.savedBtnText}>♥ Saved</Text>
+          </TouchableOpacity>
           <View style={styles.bpmRow}>
             <TouchableOpacity onPress={() => setBpm(b => Math.max(40, b - 10))} style={styles.bpmBtn} activeOpacity={0.7}>
               <Text style={styles.bpmBtnTxt}>–</Text>
@@ -270,7 +311,12 @@ export default function ProgressionsScreen() {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.noteRow}>
           {NOTES.map((n, i) => (
-            <TouchableOpacity key={n} onPress={() => setRoot(i)}
+            <TouchableOpacity key={n} onPress={() => {
+                setRoot(i);
+                if (isNamedProg) {
+                  addRecent({ kind: 'progression', root: i, progName: selectedProg.name });
+                }
+              }}
               style={[styles.notePill, root === i && styles.notePillActive]} activeOpacity={0.7}>
               <Text style={[styles.noteText, root === i && styles.noteTextActive]}>{NOTE_DISPLAY[n] || n}</Text>
             </TouchableOpacity>
@@ -293,12 +339,24 @@ export default function ProgressionsScreen() {
         {/* Drawer content moved below */}
         <View style={styles.right}>
           <ScrollView showsVerticalScrollIndicator={false}>
+            <StandardTuningNotice context="progressions" />
             {count > 0 ? (
               <>
                 <View style={styles.activeCard}>
+                  {isNamedProg && (
+                    <View style={styles.activeCardHeart}>
+                      <HeartButton
+                        item={{ kind: 'progression', root, progName: selectedProg.name }}
+                        size="md"
+                      />
+                    </View>
+                  )}
                   <Text style={styles.activeNum}>{currentNumeral}</Text>
                   <Text style={styles.activeName}>{NOTES[currentRoot]} {currentType}</Text>
                   <Text style={styles.activeIntervals}>{CHORDS[currentType]?.intervalNames.join('  ·  ')}</Text>
+                  {isNamedProg && (
+                    <Text style={styles.activeProgName}>{selectedProg.name}</Text>
+                  )}
                 </View>
 
                 <View style={styles.fbWrap}>
@@ -333,8 +391,8 @@ export default function ProgressionsScreen() {
 
                 <Text style={styles.secLabel}>Chord shapes</Text>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.boxRow}>
-                  {activeProg.degrees.map((deg, i) => (
-                    <MiniBox key={i} root={(root + deg) % 12} chordKey={activeProg.chordTypes[i]}
+                  {progRoots.map((rootI, i) => (
+                    <MiniBox key={i} root={rootI} chordKey={activeProg.chordTypes[i]}
                       numeral={activeProg.numerals[i]} active={i === activeIdx} onPress={() => goTo(i)} />
                   ))}
                 </ScrollView>
@@ -459,8 +517,8 @@ export default function ProgressionsScreen() {
                 )}
                 {customChords.map((c, i) => (
                   <View key={i} style={styles.customItem}>
-                    <Text style={styles.customItemNum}>{c.numeral}</Text>
-                    <Text style={styles.customItemName} numberOfLines={1}>{NOTES[(root + c.degree) % 12]} {c.chordType}</Text>
+                    <Text style={styles.customItemNum}>{NOTES[c.root]}</Text>
+                    <Text style={styles.customItemName} numberOfLines={1}>{NOTES[c.root]} {c.chordType}</Text>
                     <TouchableOpacity onPress={() => { setCustomChords(ch => ch.filter((_, j) => j !== i)); if (activeIdx >= customChords.length - 1) setActiveIdx(0); }}
                       style={styles.removeBtn} activeOpacity={0.7}>
                       <Text style={styles.removeTxt}>x</Text>
@@ -497,22 +555,42 @@ export default function ProgressionsScreen() {
             </View>
             <ScrollView>
               <Text style={styles.modalSec}>Diatonic — {NOTES[root]} major</Text>
-              {DIATONIC_MAJOR.map((d, i) => (
-                <TouchableOpacity key={i}
-                  onPress={() => { setCustomChords(ch => [...ch, d]); setShowModal(false); setActiveIdx(0); }}
-                  style={styles.modalItem} activeOpacity={0.7}>
-                  <Text style={styles.modalNum}>{d.numeral}</Text>
-                  <Text style={styles.modalName}>{NOTES[(root + d.degree) % 12]} {d.chordType}</Text>
-                  <Text style={styles.modalIntervals}>{CHORDS[d.chordType]?.intervalNames.join(' · ')}</Text>
-                </TouchableOpacity>
-              ))}
-              <Text style={styles.modalSec}>All types on {NOTES[root]}</Text>
+              {DIATONIC_MAJOR.map((d, i) => {
+                const absRoot = (root + d.degree) % 12;
+                return (
+                  <TouchableOpacity key={i}
+                    onPress={() => {
+                      setCustomChords(ch => [...ch, { root: absRoot, chordType: d.chordType }]);
+                      setShowModal(false); setActiveIdx(0);
+                    }}
+                    style={styles.modalItem} activeOpacity={0.7}>
+                    <Text style={styles.modalNum}>{d.numeral}</Text>
+                    <Text style={styles.modalName}>{NOTES[absRoot]} {d.chordType}</Text>
+                    <Text style={styles.modalIntervals}>{CHORDS[d.chordType]?.intervalNames.join(' · ')}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+
+              <Text style={styles.modalSec}>Any chord — pick a root</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.modalNoteRow}>
+                {NOTES.map((n, i) => (
+                  <TouchableOpacity key={n} onPress={() => setModalRoot(i)}
+                    style={[styles.modalNotePill, modalRoot === i && styles.modalNotePillActive]} activeOpacity={0.7}>
+                    <Text style={[styles.modalNoteText, modalRoot === i && styles.modalNoteTextActive]}>
+                      {NOTE_DISPLAY[n] || n}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
               {Object.keys(CHORDS).map(ck => (
                 <TouchableOpacity key={ck}
-                  onPress={() => { setCustomChords(ch => [...ch, { degree: 0, chordType: ck, numeral: 'I' }]); setShowModal(false); setActiveIdx(0); }}
+                  onPress={() => {
+                    setCustomChords(ch => [...ch, { root: modalRoot, chordType: ck }]);
+                    setShowModal(false); setActiveIdx(0);
+                  }}
                   style={styles.modalItem} activeOpacity={0.7}>
-                  <Text style={styles.modalNum}>I</Text>
-                  <Text style={styles.modalName}>{NOTES[root]} {ck}</Text>
+                  <Text style={styles.modalNum}>{NOTES[modalRoot]}</Text>
+                  <Text style={styles.modalName}>{NOTES[modalRoot]} {ck}</Text>
                   <Text style={styles.modalIntervals}>{CHORDS[ck]?.intervalNames.join(' · ')}</Text>
                 </TouchableOpacity>
               ))}
@@ -521,6 +599,8 @@ export default function ProgressionsScreen() {
           </View>
         </View>
       </Modal>
+
+      <SavedSheet visible={savedOpen} onClose={() => setSavedOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -579,9 +659,13 @@ const styles = StyleSheet.create({
   removeTxt:      { fontSize: 9, color: COLORS.textMuted },
   right:          { flex: 1 },
   activeCard:     { margin: SPACE.md, backgroundColor: COLORS.surface, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.accent, padding: SPACE.md, alignItems: 'center' },
+  activeCardHeart:{ position: 'absolute', top: 6, right: 6, zIndex: 2 },
   activeNum:      { fontSize: 12, fontWeight: '600', color: COLORS.accent, letterSpacing: 1, marginBottom: 2 },
   activeName:     { fontSize: 24, fontWeight: '700', color: COLORS.text, marginBottom: 3 },
   activeIntervals:{ fontSize: 10, color: COLORS.textMuted, letterSpacing: 0.3 },
+  activeProgName: { fontSize: 11, color: COLORS.textFaint, marginTop: 6, fontWeight: '600' },
+  savedBtn:       { paddingHorizontal: 10, paddingVertical: 5, borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bg, marginRight: SPACE.sm },
+  savedBtnText:   { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
   fbWrap:         { backgroundColor: COLORS.surface, borderTopWidth: 1, borderBottomWidth: 1, borderColor: COLORS.border, paddingVertical: SPACE.sm, marginBottom: SPACE.md, alignItems: 'center' },
   ctrlRow:        { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACE.md, gap: 8, marginBottom: SPACE.sm },
   navBtn:         { width: 36, height: 36, borderRadius: 18, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.surface, alignItems: 'center', justifyContent: 'center' },
@@ -616,4 +700,9 @@ const styles = StyleSheet.create({
   modalNum:       { fontSize: 14, fontWeight: '700', color: COLORS.accent, width: 32 },
   modalName:      { fontSize: 13, fontWeight: '600', color: COLORS.text, width: 120 },
   modalIntervals: { fontSize: 10, color: COLORS.textFaint, flex: 1 },
+  modalNoteRow:        { flexDirection: 'row', paddingHorizontal: SPACE.lg, paddingVertical: SPACE.sm, gap: 6 },
+  modalNotePill:       { paddingHorizontal: 11, paddingVertical: 6, borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bg },
+  modalNotePillActive: { backgroundColor: '#E8D44D', borderColor: '#C4A800' },
+  modalNoteText:       { fontSize: 13, fontWeight: '600', color: COLORS.textMuted },
+  modalNoteTextActive: { color: '#5C4400' },
 });

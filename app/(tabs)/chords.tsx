@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   Animated, Pressable, useWindowDimensions, PanResponder,
@@ -13,6 +13,10 @@ import { useProGate } from '../../src/hooks/useProGate';
 import { ProBanner } from '../../src/components/ProLock';
 import { isChordFree } from '../../src/constants/subscription';
 import { getChordVoicings } from '../../src/utils/theory';
+import StandardTuningNotice from '../../src/components/StandardTuningNotice';
+import { getResolutions } from '../../src/constants/resolutions';
+import HeartButton from '../../src/components/HeartButton';
+import SavedSheet from '../../src/components/SavedSheet';
 
 const CATEGORIES = ['All', 'Triads', 'Seventh', 'Extended', 'Sus'];
 const CAT_MAP: Record<string, string> = {
@@ -24,11 +28,23 @@ export default function ChordsScreen() {
   const { width: screenW, height: screenH } = useWindowDimensions();
   const isTablet = screenW >= 768;
   const { root, setRoot } = useStore();
+  const pendingNav = useStore(s => s.pendingNav);
+  const setPendingNav = useStore(s => s.setPendingNav);
+  const addRecent = useStore(s => s.addRecent);
   const { isPro, requirePro } = useProGate();
   const { playChord } = useAudioEngine();
   const [category, setCategory] = useState('All');
   const [selectedChord, setSelectedChord] = useState('Major');
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [savedOpen, setSavedOpen] = useState(false);
+
+  // Apply pending navigation from the Saved sheet
+  useEffect(() => {
+    if (pendingNav?.kind === 'chord') {
+      setSelectedChord(pendingNav.chordKey);
+      setPendingNav(null);
+    }
+  }, [pendingNav, setPendingNav]);
   const drawerAnim = useRef(new Animated.Value(0)).current;
   const scrimAnim = useRef(new Animated.Value(0)).current;
 
@@ -86,19 +102,28 @@ export default function ChordsScreen() {
   }
 
   function selectChord(key: string) {
-    if (!isChordFree(key)) {
-      requirePro(() => {
-        setSelectedChord(key);
-        closeDrawer();
-        const voicings = getChordVoicings(root, key);
-        if (voicings.length > 0) playChord(voicings[0].frets);
-      });
-      return;
-    }
-    setSelectedChord(key);
-    closeDrawer();
-    const voicings = getChordVoicings(root, key);
-    if (voicings.length > 0) playChord(voicings[0].frets);
+    const apply = () => {
+      setSelectedChord(key);
+      addRecent({ kind: 'chord', root, chordKey: key });
+      closeDrawer();
+      const voicings = getChordVoicings(root, key);
+      if (voicings.length > 0) playChord(voicings[0].frets);
+    };
+    if (!isChordFree(key)) { requirePro(apply); return; }
+    apply();
+  }
+
+  function resolveTo(offset: number, targetType: string) {
+    const newRoot = (root + offset + 12) % 12;
+    const apply = () => {
+      setRoot(newRoot);
+      setSelectedChord(targetType);
+      addRecent({ kind: 'chord', root: newRoot, chordKey: targetType });
+      const voicings = getChordVoicings(newRoot, targetType);
+      if (voicings.length > 0) playChord(voicings[0].frets);
+    };
+    if (!isChordFree(targetType)) { requirePro(apply); return; }
+    apply();
   }
 
   const filteredChords = Object.entries(CHORDS).filter(([, ch]) =>
@@ -109,16 +134,23 @@ export default function ChordsScreen() {
   const toggleX = drawerAnim.interpolate({ inputRange: [0, 1], outputRange: [0, DRAWER_W] });
 
   const chord = CHORDS[selectedChord];
+  const resolutions = getResolutions(selectedChord);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Chord Library</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>Chord Library</Text>
+          <TouchableOpacity onPress={() => setSavedOpen(true)} activeOpacity={0.7} style={styles.savedBtn}>
+            <Text style={styles.savedBtnText}>♥ Saved</Text>
+          </TouchableOpacity>
+        </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.noteRow}>
           {NOTES.map((note, i) => (
             <TouchableOpacity key={note} onPress={() => {
                 setRoot(i);
+                addRecent({ kind: 'chord', root: i, chordKey: selectedChord });
                 const voicings = getChordVoicings(i, selectedChord);
                 if (voicings.length > 0) playChord(voicings[0].frets);
               }}
@@ -143,10 +175,14 @@ export default function ChordsScreen() {
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.detailContent}
         >
+          <StandardTuningNotice context="chord library" />
           {/* Chord name + description */}
-          <Text style={[styles.diagramTitle, isTablet && styles.diagramTitleTablet]}>
-            {NOTES[root]} {selectedChord}
-          </Text>
+          <View style={styles.titleHeart}>
+            <Text style={[styles.diagramTitle, isTablet && styles.diagramTitleTablet]}>
+              {NOTES[root]} {selectedChord}
+            </Text>
+            <HeartButton item={{ kind: 'chord', root, chordKey: selectedChord }} size="md" />
+          </View>
           <Text style={[styles.diagramDesc, isTablet && styles.diagramDescTablet]}>
             {chord?.description}
           </Text>
@@ -173,6 +209,43 @@ export default function ChordsScreen() {
             ))}
           </View>
           <Text style={styles.intervalLabel}>Interval structure</Text>
+
+          {/* Resolution suggestions */}
+          {resolutions.length > 0 && (
+            <View style={styles.resWrap}>
+              <Text style={styles.resHeader}>OFTEN RESOLVES TO</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.resScrollContent}
+              >
+                {resolutions.map((r, i) => {
+                  const targetRoot = (root + r.degreeOffset + 12) % 12;
+                  const locked = !isPro && !isChordFree(r.targetType);
+                  return (
+                    <TouchableOpacity
+                      key={i}
+                      onPress={() => resolveTo(r.degreeOffset, r.targetType)}
+                      activeOpacity={0.7}
+                      style={[styles.resCard, locked && { opacity: 0.55 }]}
+                    >
+                      <View style={styles.resCardTop}>
+                        <Text style={styles.resCardArrow}>→</Text>
+                        <Text style={styles.resCardName} numberOfLines={1}>
+                          {NOTES[targetRoot]} {r.targetType}
+                        </Text>
+                        {locked && <Text style={styles.resCardLock}>🔒</Text>}
+                      </View>
+                      <View style={styles.resCardBadge}>
+                        <Text style={styles.resCardBadgeText}>{r.intervalLabel}</Text>
+                      </View>
+                      <Text style={styles.resCardWhy}>{r.why}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          )}
 
           {/* Chord description card */}
           {chord && (
@@ -235,6 +308,8 @@ export default function ChordsScreen() {
           </View>
         </Animated.View>
       </View>
+
+      <SavedSheet visible={savedOpen} onClose={() => setSavedOpen(false)} />
     </SafeAreaView>
   );
 }
@@ -242,7 +317,20 @@ export default function ChordsScreen() {
 const styles = StyleSheet.create({
   safe:         { flex: 1, backgroundColor: COLORS.bg },
   header:       { backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border, paddingTop: SPACE.md, paddingBottom: SPACE.md, gap: SPACE.sm },
-  title:        { fontSize: 18, fontWeight: '700', color: COLORS.text, paddingHorizontal: SPACE.lg, marginBottom: 2 },
+  title:        { fontSize: 18, fontWeight: '700', color: COLORS.text, marginBottom: 2 },
+  titleRow:     { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACE.lg },
+  savedBtn:     {
+                  marginLeft: 'auto',
+                  paddingHorizontal: 10, paddingVertical: 5,
+                  borderRadius: RADIUS.full,
+                  borderWidth: 1, borderColor: COLORS.border,
+                  backgroundColor: COLORS.bg,
+                },
+  savedBtnText: { fontSize: 12, fontWeight: '600', color: COLORS.textMuted },
+  titleHeart:   {
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  gap: 10, marginBottom: 6,
+                },
   noteRow:      { flexDirection: 'row', paddingHorizontal: SPACE.lg, gap: 6 },
   notePill:     { paddingHorizontal: 10, paddingVertical: 5, borderRadius: RADIUS.full, borderWidth: 1, borderColor: COLORS.border, backgroundColor: COLORS.bg },
   notePillActive: { backgroundColor: '#E8D44D', borderColor: '#C4A800' },
@@ -272,6 +360,31 @@ const styles = StyleSheet.create({
   intervalTextTablet: { fontSize: 22 },
   rootText:         { color: '#5C4400' },
   intervalLabel:    { fontSize: 12, color: COLORS.textFaint, letterSpacing: 0.5, marginBottom: SPACE.xl },
+
+  resWrap:          { width: '100%', marginBottom: SPACE.md },
+  resHeader:        { fontSize: 10, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 1.2, marginBottom: SPACE.sm },
+  resScrollContent: { gap: 10, paddingRight: 8 },
+  resCard:          {
+                      width: 220,
+                      padding: SPACE.md,
+                      borderRadius: RADIUS.md,
+                      borderWidth: 1, borderColor: COLORS.border,
+                      backgroundColor: COLORS.surface,
+                    },
+  resCardTop:       { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 },
+  resCardArrow:     { fontSize: 16, color: COLORS.accent, fontWeight: '700', lineHeight: 18 },
+  resCardName:      { fontSize: 15, fontWeight: '700', color: COLORS.text, flexShrink: 1 },
+  resCardLock:      { fontSize: 11, marginLeft: 'auto' },
+  resCardBadge:     {
+                      alignSelf: 'flex-start',
+                      paddingHorizontal: 8, paddingVertical: 3,
+                      borderRadius: RADIUS.full,
+                      backgroundColor: COLORS.surfaceHigh,
+                      borderWidth: 1, borderColor: COLORS.border,
+                      marginBottom: 8,
+                    },
+  resCardBadgeText: { fontSize: 10, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 0.5 },
+  resCardWhy:       { fontSize: 11, color: COLORS.textMuted, lineHeight: 16 },
 
   infoCard:         { width: '100%', backgroundColor: COLORS.surface, borderRadius: RADIUS.lg, borderWidth: 1, borderColor: COLORS.border, padding: SPACE.lg, marginTop: SPACE.sm },
   infoCardLabel:    { fontSize: 10, fontWeight: '700', color: COLORS.textMuted, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: SPACE.sm },
